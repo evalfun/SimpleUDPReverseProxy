@@ -607,10 +607,17 @@ func (this *AdvancedRelayConn) checkSessionProc() {
 			}
 			_, _, _, CloseTime, LastRecv, LastSend := session.GetSessionInfo()
 			if currentTime-LastRecv > int64(this.sessionTimeout) && currentTime-LastSend > int64(this.sessionTimeout) && session.IsClosed() == false {
-				this.log(fmt.Sprintf("Session time out.Last active:r%d s%d current:%d timeout:%d", this.lastRecv, this.lastSend, currentTime, connectionTimeout))
+				this.log(fmt.Sprintf("Session %d time out.Last active:r%d s%d current:%d timeout:%d", k, this.lastRecv, this.lastSend, currentTime, connectionTimeout))
 				session.Close("session timeout")
 			}
 			if currentTime-CloseTime >= int64(this.saveClosedSession) && this.session[k].IsClosed() {
+				for clientAddr := range this.clientAddrMap {
+					if this.clientAddrMap[clientAddr] == k {
+						delete(this.clientAddrMap, clientAddr)
+						break
+					}
+				}
+				delete(this.clientSessionIDMap, k)
 				delete(this.session, k)
 			}
 		}
