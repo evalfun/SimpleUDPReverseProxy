@@ -546,8 +546,10 @@ func (this *AdvancedRelayConn) RecvUserClientDataProc() {
 		// 创建或者获取session
 		var session *IncomeUDPSession
 		var sessionID uint16
+		this.sessionLock.RLock()
 		sessionID, ok := this.clientAddrMap[userClientAddrString]
-		if !ok {
+		_session, ok1 := this.session[sessionID]
+		if !ok || !ok1 {
 			// 创建一个session
 			session = &IncomeUDPSession{}
 			session.InitUDPSession(this.clientListener, userClientAddr)
@@ -561,20 +563,16 @@ func (this *AdvancedRelayConn) RecvUserClientDataProc() {
 			}
 			this.clientSessionIDMap[sessionID] = userClientAddrString
 			this.clientAddrMap[userClientAddrString] = sessionID
-			this.sessionLock.Lock()
 			this.session[sessionID] = session
-			this.sessionLock.Unlock()
 			this.log(fmt.Sprintf("Created a new session %d from %s\n", sessionID, userClientAddrString))
 		} else {
-			this.sessionLock.RLock()
-			_session, _ := this.session[sessionID]
-			this.sessionLock.RUnlock()
 			session = _session.(*IncomeUDPSession)
 		}
 		session.LastRecv = time.Now().Unix()
 		session.RecvBytes = session.RecvBytes + int64(read_count)
 		// 发送数据给对端
 		this.sendPacket(MSG_DATA, sessionID, data[:read_count])
+		this.sessionLock.RUnlock()
 	}
 }
 
