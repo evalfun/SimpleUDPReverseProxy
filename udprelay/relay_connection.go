@@ -612,7 +612,7 @@ func (this *AdvancedRelayConn) checkSessionProc() {
 				this.log(fmt.Sprintf("Session time out.Last active:r%d s%d current:%d timeout:%d", this.lastRecv, this.lastSend, currentTime, connectionTimeout))
 				session.Close("session timeout")
 			}
-			if currentTime-CloseTime <= 0 {
+			if currentTime-CloseTime >= int64(this.saveClosedSession) {
 				delete(this.session, k)
 			}
 		}
