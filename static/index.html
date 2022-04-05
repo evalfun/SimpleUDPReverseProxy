@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <!--Import Google Icon Font-->
+    <link href="css/icon.css" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link type="text/css" rel="stylesheet" href="css/materialize.min.css" media="screen,projection" />
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript" src="js/jsrender.js"></script>
+    <script type="text/javascript" src="js/materialize.min.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+    <style>
+        #container {
+            padding-top: 20px;
+        }
+
+        .info_table {
+            display: inline-block;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="modal_info" class="modal">
+        <div class="modal-content">
+            <h4 id="modal_info_title">Modal Header</h4>
+            <p id="modal_info_content">A bunch of text</p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">关闭</a>
+        </div>
+    </div>
+
+    <div id="modal_create_server" class="modal">
+        <div class="modal-content">
+            <h4>创建服务端</h4>
+            <div class="row">
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_ins_id" type="text" class="validate" value="0">
+                    <label for="in_create_server_ins_id">实例id</label>
+                    <span class="helper-text">请选择一个不冲突的实例id数字。0为自动选择</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_local_port" placeholder="36900" value="0" type="text" class="validate">
+                    <label for="in_create_server_local_port">本地端口</label>
+                    <span class="helper-text">与对端通信的端口，设为0是随机端口</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_password" placeholder="Password@1234" type="text" class="validate">
+                    <label for="in_create_server_password">密码</label>
+                    <span class="helper-text">客户端密码错误时服务端不会发送任何数据</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <select id="in_create_server_crypt_method">
+                        <option value="AES">AES</option>
+                        <option value="NONE">NONE(不安全！！！)</option>
+                    </select>
+                    <label>加密算法</label>
+                    <span class="helper-text"></span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_stun" placeholder="stun.miwifi.com:3478" value="stun.miwifi.com:3478"
+                        type="text" class="validate">
+                    <label for="in_create_server_stun">stun服务器</label>
+                    <span class="helper-text">stun服务器用于确定公网地址和端口</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_target" placeholder="8.8.8.8:53" type="text" class="validate">
+                    <label for="in_create_server_target">目标服务器</label>
+                    <span class="helper-text">客户端的流量将会转发至此服务器，不填则由客户端指定</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <select id="in_create_server_target_version">
+                        <option value="udp">udp</option>
+                        <option value="udp4">udp4</option>
+                        <option value="udp6">udp6</option>
+                    </select>
+                    <label>udp版本</label>
+                    <span class="helper-text">指定使用ipv4或ipv6，还是自动协商</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_local_name" placeholder="MySuperUDPRelayServer" value="" type="text"
+                        class="validate">
+                    <label for="in_create_server_local_name">本端名称</label>
+                    <span class="helper-text">发送给对端的名称</span>
+                </div>
+                <div class="input-field col s12">
+                    <textarea id="in_create_server_other_data" class="materialize-textarea"></textarea>
+                    <label for="in_create_server_other_data">其它信息</label>
+                    <span class="helper-text">发送给对端的其它信息</span>
+                </div>
+            </div>
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 10px;">
+                <p>以下参数不建议更改</p>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_buf_size" placeholder="2048" value="2048" type="text" class="validate">
+                    <label for="in_create_server_buf_size">udp缓冲区大小</label>
+                    <span class="helper-text">不能太小，比标准mtu稍大即可，建议2048</span>
+                </div>
+
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_session_timeout" placeholder="120" value="120" type="text"
+                        class="validate">
+                    <label for="in_create_server_session_timeout">会话超时</label>
+                    <span class="helper-text">在此时间内没有发送或接收任何数据就关闭会话</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_server_save_close" placeholder="0" type="text" value="0" class="validate">
+                    <label for="in_create_server_save_close">会话保留</label>
+                    <span class="helper-text">在此时间后删除关闭的会话。单位为秒</span>
+                </div>
+                
+                <label class="input-field col s12 m6 l4">
+                    <input type="checkbox" class="filled-in" id="in_create_server_eho" />
+                    <span>仅加密头部</span>
+                    <span class="helper-text">不会对载荷进行加密和校验</span>
+                </label>
+                <label class="input-field col s12 m6 l4">
+                    <input type="checkbox" class="filled-in" id="in_create_server_hho" />
+                    <span>仅校验头部</span>
+                    <span class="helper-text">勾上我能显著减少cpu使用</span>
+                </label>
+                
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">关闭</a>
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat" onclick="create_server()">创建</a>
+        </div>
+    </div>
+    <div id="modal_create_client" class="modal">
+        <div class="modal-content">
+            <h4>创建客户端</h4>
+            <div class="row">
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_ins_id" type="text" class="validate" value="0">
+                    <label for="in_create_client_ins_id">实例id</label>
+                    <span class="helper-text">请选择一个不冲突的实例id数字。0为自动选择</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_listener_port" placeholder="53" value="0" type="text" class="validate">
+                    <label for="in_create_client_listener_port">监听端口</label>
+                    <span class="helper-text">业务流量入站监听端口</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_local_port" placeholder="36900" value="0" type="text" class="validate">
+                    <label for="in_create_client_local_port">本地端口</label>
+                    <span class="helper-text">与对端通信的端口，设为0是随机端口</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_password" placeholder="Password@1234" type="text" class="validate">
+                    <label for="in_create_client_password">密码</label>
+                    <span class="helper-text">客户端密码错误时服务端不会发送任何数据</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_target" placeholder="8.8.8.8:53" type="text" class="validate">
+                    <label for="in_create_client_target">目标服务器</label>
+                    <span class="helper-text">客户端的流量将会转发至此服务器，不填则由客户端指定</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_stun" placeholder="stun.miwifi.com:3478" value="stun.miwifi.com:3478"
+                        type="text" class="validate">
+                    <label for="in_create_client_stun">stun服务器</label>
+                    <span class="helper-text">stun服务器用于确定公网地址和端口</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <select id="in_create_client_target_version">
+                        <option value="udp">udp</option>
+                        <option value="udp4">udp4</option>
+                        <option value="udp6">udp6</option>
+                    </select>
+                    <label>udp版本</label>
+                    <span class="helper-text">指定使用ipv4或ipv6，还是自动协商</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <select id="in_create_client_crypt_method">
+                        <option value="AES">AES</option>
+                        <option value="NONE">NONE(不安全！！！)</option>
+                    </select>
+                    <label>加密算法</label>
+                    <span class="helper-text"></span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_local_name" placeholder="MySuperUDPRelayClient" value="" type="text"
+                        class="validate">
+                    <label for="in_create_client_local_name">本端名称</label>
+                    <span class="helper-text">发送给对端的名称</span>
+                </div>
+                <div class="input-field col s12">
+                    <textarea id="in_create_client_other_data" class="materialize-textarea"></textarea>
+                    <label for="in_create_client_other_data">其它信息</label>
+                    <span class="helper-text">发送给对端的其它信息</span>
+                </div>
+                <div class="input-field col s12">
+                    <textarea id="in_create_client_remote_addr" class="materialize-textarea"></textarea>
+                    <label for="in_create_client_remote_addr">对端地址</label>
+                    <span class="helper-text">服务端地址，一行一个</span>
+                </div>
+            </div>
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 10px;">
+                <p>以下参数不建议更改</p>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_buf_size" placeholder="2048" value="2048" type="text" class="validate">
+                    <label for="in_create_client_buf_size">udp缓冲区大小</label>
+                    <span class="helper-text">不能太小，比标准mtu稍大即可，建议2048</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_session_timeout" placeholder="120" value="120" type="text"
+                        class="validate">
+                    <label for="in_create_client_session_timeout">会话超时</label>
+                    <span class="helper-text">在此时间内没有发送或接收任何数据就关闭会话</span>
+                </div>
+                <div class="input-field col s12 m6 l4">
+                    <input id="in_create_client_save_close" placeholder="0" type="text" value="0" class="validate">
+                    <label for="in_create_client_save_close">会话保留</label>
+                    <span class="helper-text">在此时间后删除关闭的会话。单位为秒</span>
+                </div>
+                <label class="input-field col s12 m6 l4">
+                    <input type="checkbox" class="filled-in" id="in_create_client_eho" />
+                    <span>仅加密头部</span>
+                    <span class="helper-text">不会对载荷进行加密和校验</span>
+                </label>
+                <label class="input-field col s12 m6 l4">
+                    <input type="checkbox" class="filled-in" id="in_create_client_hho" />
+                    <span>仅校验头部</span>
+                    <span class="helper-text">勾上我能显著减少cpu使用</span>
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">关闭</a>
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat" onclick="create_client()">创建</a>
+        </div>
+    </div>
+    <div id="modal_connection_info" class="modal">
+        <div class="modal-content">
+            <h4>连接详情</h4>
+            <div class="row" id="div_server_conn_info">
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">关闭</a>
+        </div>
+    </div>
+    <div id="modal_client_info" class="modal">
+        <div class="modal-content">
+            <h4>客户端信息</h4>
+            <div class="row">
+                <div class="col s12">
+                    <ul class="tabs" id="tab_client_info">
+                        <li class="tab col s3"><a class="active" href="#client_info">信息</a></li>
+                        <li class="tab col s3"><a href="#client_conn" onclick="list_client_conn()">连接</a></li>
+                        <li class="tab col s3"><a href="#client_session" onclick="list_client_session()">会话</a></li>
+                    </ul>
+                </div>
+                <div id="client_info" class="col s12">
+                    <p>客户端信息</p>
+                    <div class="row" id="div_client_info">
+
+                    </div>
+                </div>
+                <div id="client_conn" class="col s12">
+                    <p>客户端连接</p>
+                    <div id="div_client_conn_list">
+                    </div>
+                </div>
+                <div id="client_session" class="col s12">
+                    <p>客户端会话</p>
+                    <div id="div_client_session"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a class="modal-close waves-effect waves-green btn-flat red-text" onclick="delete_client()">删除</a>
+            <a class="modal-close waves-effect waves-green btn-flat" onclick="restart_client_connection()">重启</a>
+            <a class="waves-effect waves-green btn-flat" onclick="update_client_serveraddr()">更新服务器地址</a>
+            <a href="#!" class="modal-close waves-effect waves-green btn-flat">关闭</a>
+        </div>
+    </div>
+    <div id="modal_server_info" class="modal">
+        <div class="modal-content">
+            <h4>服务端信息</h4>
+            <div class="row">
+                <div class="col s12">
+                    <ul class="tabs" id="tab_server_info">
+                        <li class="tab col s3"><a class="active" href="#server_info">信息</a></li>
+                        <li class="tab col s3"><a href="#server_conn" onclick="list_server_conn()">连接</a></li>
+                        <li class="tab col s3"><a href="#server_session" onclick="list_server_session()">会话</a></li>
+                    </ul>
+                </div>
+                <div id="server_info" class="col s12">
+                    <p>服务端信息</p>
+                    <div class="row" id="div_server_info">
+
+                    </div>
+                </div>
+                <div id="server_conn" class="col s12">
+                    <p>服务端连接</p>
+                    <p>如果客户端是fullcone nat，或是服务端和客户端都是端口限制型nat，可以使用下面的主动连接发起工具连接客户端。</p>
+                    <div class="row">
+                        <div class="input-field col s10 m6 l3">
+                            <input placeholder="1.1.1.1:19260" id="in_client_conn" type="text" class="validate">
+                            <label for="in_client_conn">客户端公网ip
+                            </label>
+                        </div>
+                        <a onclick="connect_client()" style="margin-top: 20px;"
+                            class="waves-effect col waves-teal btn-flat">连接</a>
+                    </div>
+                    <div id="div_server_conn_list">
+                    </div>
+                </div>
+                <div id="server_session" class="col s12">
+                    <p>服务端会话</p>
+                    <div id="div_server_session"></div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <a class="modal-close waves-effect waves-green btn-flat red-text" onclick="delete_server()">删除</a>
+            <a class="modal-close waves-effect waves-green btn-flat">关闭</a>
+        </div>
+    </div>
+    <nav>
+        <div class="nav-wrapper">
+            <a href="#" class="brand-logo">UDP打洞机</a>
+            <ul id="nav-mobile" class="right hide-on-med-and-down">
+                <li><a href="javascript:void(0)" onclick="save_config()">保存配置</a></li>
+            </ul>
+        </div>
+    </nav>
+    <!-- body -->
+    <div class="container" id="container">
+        <div class="row">
+            <div class="col s12">
+                <ul class="tabs">
+                    <li class="tab col s4"><a href="#tab_content_relay">基本udp转发</a></li>
+                    <li class="tab col s4"><a href="#tab_content_server" onclick="list_server()">高级udp转发服务端</a></li>
+                    <li class="tab col s4"><a href="#tab_content_client" class="active"
+                            onclick="list_client()">高级udp转发客户端</a></li>
+                </ul>
+            </div>
+            <div id="tab_content_relay" class="col s12">
+                <p>基本udp转发，需要fullcone nat才可以正常使用</p>
+                <p>webui尚未实现</p>
+                <div class="fixed-action-btn">
+                    <a class="btn-floating btn-large red">
+                        <i class="large material-icons">add</i>
+                    </a>
+                </div>
+            </div>
+            <div id="tab_content_server" class="col s12">
+                <p>高级udp转发服务端</p>
+                <div id="div_serverlist_table">
+
+                </div>
+                <div class="fixed-action-btn">
+                    <a class="btn-floating btn-large red" onclick="show_create_server()">
+                        <i class="large material-icons">add</i>
+                    </a>
+                </div>
+            </div>
+            <div id="tab_content_client" class="col s12">
+                <p>高级udp转发客户端</p>
+                <div id="div_clientlist_table">
+
+                </div>
+                <div class="fixed-action-btn">
+                    <a class="btn-floating btn-large red">
+                        <i class="large material-icons" onclick="show_create_client()">add</i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 连接信息 -->
+    <script type="text/x-jsrender" id="jsr-connection-info">
+        <table class="info_table col s12 m12 l6">
+            <tr>
+                <td>对端地址</td>
+                <td>{{>RemoteAddr}}</td>
+            </tr>
+            <tr>
+                <td>连接状态</td>
+                <td>{{>ConnectStat}}</td>
+            </tr>
+            <tr>
+                <td>目标地址</td>
+                <td>{{>TargetAddr}}</td>
+            </tr>
+            <tr>
+                <td>目标udp版本</td>
+                <td>{{>TargetIPVersion}}</td>
+            </tr>
+            <tr>
+                <td>创建时间</td>
+                <td>{{>CreateTime}}</td>
+            </tr>
+            
+        </table>
+        <table class="info_table col s12 m12 l6">
+            <tr>
+                <td>对端名称</td>
+                <td>{{>RemoteName}}</td>
+            </tr>
+            <tr>
+                <td>发送数据</td>
+                <td>{{>SendSize}}</td>
+            </tr>
+            <tr>
+                <td>接收数据</td>
+                <td>{{>RecvSize}}</td>
+            </tr>
+            <tr>
+                <td>压缩类型</td>
+                <td>{{>CompressType}}</td>
+            </tr>
+            <tr>
+                <td>接收丢包率 %</td>
+                <td>{{>DropRate}}</td>
+            </tr>
+        </table>
+        <table class="info_table col s12 m12 l6">
+            <tr>
+                <td>新密码</td>
+                <td>{{>NewPassword}}</td>
+            </tr>
+            <tr>
+                <td>关闭原因</td>
+                <td>{{>CloseResult}}</td>
+            </tr>
+        </table>
+        <div class="input-field col s12">
+            <textarea id="textarea2_" class="materialize-textarea">{{>RemoteOtherData}}</textarea>
+            <label for="textarea2_">来自对端的其它数据</label>
+        </div>
+    </script>
+    <!-- 服务端列表 -->
+    <script type="text/x-jsrender" id="jsr-serverlist">
+        <table>
+        <thead>
+            <tr>
+                <th>实例id</th>
+                <th>本端名称</th>
+                <th>本地地址</th>
+                <th>公网地址</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        {{props data}}
+            <tbody>
+                <tr>
+                    <td>{{>key}}</td>
+                    <td>{{>prop.LocalName}}</td>
+                    <td>{{>prop.LocalAddr}}</td>
+                    <td>{{>prop.PublicAddr}}</td>
+                    <td><a href="javascript:void(0)" onclick="show_server_info({{>key}})">详情</a></td>
+                </tr>
+            </tbody>
+        {{/props}}
+        </table>
+    </script>
+    <!-- 客户端列表 -->
+    <script type="text/x-jsrender" id="jsr-clientlist">
+        <table>
+        <thead>
+            <tr>
+                <th>实例id</th>
+                <th>本端名称</th>
+                <th>监听地址</th>
+                <th>对端地址</th>
+                <th>连接状态</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        {{props data}}
+            <tbody>
+                <tr>
+                    <td>{{>key}}</td>
+                    <td>{{>prop.LocalName}}</td>
+                    <td>{{>prop.ListenerAddr}}</td>
+                    <td>{{>prop.RemoteAddr}}</td>
+                    <td>{{>prop.Stat}}</td>
+                    <td><a href="javascript:void(0)" onclick="show_client_info({{>key}})">详情</a></td>
+                </tr>
+            </tbody>
+        {{/props}}
+        </table>
+    </script>
+    <!-- 连接列表 -->
+    <script type="text/x-jsrender" id="jsr-connlist">
+        <table>
+            <thead>
+                <td>对端地址</td>
+                <td>对端名称</td>
+                <td>连接状态</td>
+                <td>发送数据</td>
+                <td>接受数据</td>
+                <td>更多信息</td>
+            </thead>
+            <tbody>
+                {{if data != null}}
+                    {{for data}}
+                    <tr>
+                        <td>{{>RemoteAddr}}</td>
+                        <td>{{>RemoteName}}</td>
+                        <td>{{>ConnectStat}}</td>
+                        <td>{{>SendSize}}</td>
+                        <td>{{>RecvSize}}</td>
+                        <td><a href="javascript:void(0)" onclick="show_conn_info({{:#index}})">查看</a></td>
+                    </tr>
+                    {{/for}}
+                {{/if}}
+            </tbody>
+        </table>
+    </script>
+    <!-- 会话列表 -->
+    <script type="text/x-jsrender" id="jsr-session-list">
+        <table>
+            <thead>
+                <td>对端地址</td>
+                <td>目标地址</td>
+                <td>发送数据</td>
+                <td>接收数据</td>
+                <td>关闭时间</td>
+            </thead>
+            <tbody>
+                {{for data}}
+                <tr>
+                    <td>{{>RemoteAddr}}</td>
+                    <td>{{>TargetAddr}}</td>
+                    <td>{{>SendBytes}}</td>
+                    <td>{{>RecvBytes}}</td>
+                    <td>{{>ClosedTime}}</td>
+                </tr>
+                {{/for}}
+            </tbody>
+        </table>
+    </script>
+    <!-- 服务端信息 -->
+    <script type="text/x-jsrender" id="jsr-serverinfo">
+        <table class="info_table col s12 m6 l4">
+            <tr>
+                <td>本端地址</td>
+                <td>{{>LocalAddr}}</td>
+            </tr>
+            <tr>
+                <td>公网地址</td>
+                <td>{{>PublicAddr}}</td>
+            </tr>
+            <tr>
+                <td>已关闭</td>
+                <td>{{>Closed}}</td>
+            </tr>
+            <tr>
+                <td>udp缓冲区大小</td>
+                <td>{{>BufSize}}</td>
+            </tr>
+            <tr>
+                <td>stun服务器</td>
+                <td>{{>StunServer}}</td>
+            </tr>
+        </table>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="my_udp_redir_server" id="input_server_localname" type="text" value="{{>LocalName}}"
+                class="validate">
+            <label for="input_server_localname">本端名称</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="8.8.8.8:53" id="input_server_target_addr" type="text" class="validate" value="{{>Target}}">
+            <label for="input_server_target_addr">目标ip地址</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <select id="sel_server_target_version">
+                {{if TargetIPVersion == "udp"}}
+                <option value="udp" selected>udp</option>
+                {{else}}
+                <option value="udp">udp</option>
+                {{/if}}
+                {{if TargetIPVersion == "udp4"}}
+                <option value="udp4" selected>udp4</option>
+                {{else}}
+                <option value="udp4">udp4</option>
+                {{/if}}
+                {{if TargetIPVersion == "udp6"}}
+                <option value="udp6" selected>udp6</option>
+                {{else}}
+                <option value="udp6">udp6</option>
+                {{/if}}
+            </select>
+            <label>目标udp版本</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="Password@123" id="input_server_password" type="text" class="validate" value="{{>Password}}">
+            <label for="input_server_password">密码</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <select id="sel_server_encrypt_method">
+                {{if EncryptMethod == 9}}
+                <option value="AES" selected>AES</option>
+                {{else}}
+                <option value="AES">AES</option>
+                {{/if}}
+                {{if EncryptMethod == 7}}
+                <option value="NONE" selected>NONE(不安全！！！)</option>
+                {{else}}
+                <option value="NONE">NONE(不安全！！！)</option>
+                {{/if}}
+            </select>
+            <label>加密算法</label>
+        </div>
+        
+        <div class="col s12">
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="input_server_otherdata" class="materialize-textarea">{{>OtherData}}</textarea>
+                    <label for="input_server_otherdata">发送给对端的其它信息</label>
+                </div>
+            </div>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="300" id="input_server_timeout" type="text" class="validate" value="{{>SessionTimeout}}">
+            <label for="input_server_timeout">会话超时时间</label>
+        </div>
+        
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="30" id="input_server_saveclose" type="text" class="validate" value="{{>SaveClosedSession}}">
+            <label for="input_server_saveclose">保留超时的会话秒</label>
+        </div>
+        <div class="col s12 m6 l4">
+            <label>
+                {{if EncryptHeaderOnly == true}}
+                <input id="input_server_eho" type="checkbox"  checked="checked" class="filled-in" />
+                {{else}}
+                <input id="input_server_eho" type="checkbox" class="filled-in" />
+                {{/if}}
+                <span>仅加密头部</span>
+            </label>
+        </div>
+        <div class="col s12 m6 l4">
+            <label>
+                {{if HashHeaderOnly == true}}
+                <input id="input_server_hho" type="checkbox"  checked="checked" class="filled-in" />
+                {{else}}
+                <input id="input_server_hho" type="checkbox" class="filled-in" />
+                {{/if}}
+                <span>仅校验头部</span>
+            </label>
+        </div>
+    </script>
+    <!-- 客户端信息 -->
+    <script type="text/x-jsrender" id="jsr-clientinfo">
+        <table class="info_table col s12 m6 l4">
+            <tr>
+                <td>入站监听地址</td>
+                <td>{{>ListenerAddr}}</td>
+            </tr>
+            <tr>
+                <td>本端地址</td>
+                <td>{{>LocalAddr}}</td>
+            </tr>
+            <tr>
+                <td>对端地址</td>
+                <td>{{>RemoteAddr}}</td>
+            </tr>
+            <tr>
+                <td>对端名称</td>
+                <td>{{>RemoteName}}</td>
+            </tr>
+            <tr>
+                <td>公网地址</td>
+                <td>{{>PublicAddr}}</td>
+            </tr>
+            <tr>
+                <td>状态</td>
+                <td>{{>Stat}}</td>
+            </tr>
+            <tr>
+                <td>udp缓冲区大小</td>
+                <td>{{>BufSize}}</td>
+            </tr>
+            <tr>
+                <td>stun服务器</td>
+                <td>{{>StunServer}}</td>
+            </tr>
+        </table>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="my_udp_redir_server" id="input_client_localname" type="text" value="{{>LocalName}}"
+                class="validate">
+            <label for="input_client_localname">本端名称</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="8.8.8.8:53" id="input_client_target_addr" type="text" class="validate" value="{{>Target}}">
+            <label for="input_client_target_addr">目标ip地址</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <select id="sel_client_target_version">
+                {{if TargetIPVersion == "udp"}}
+                <option value="udp" selected>udp</option>
+                {{else}}
+                <option value="udp">udp</option>
+                {{/if}}
+                {{if TargetIPVersion == "udp4"}}
+                <option value="udp4" selected>udp4</option>
+                {{else}}
+                <option value="udp4">udp4</option>
+                {{/if}}
+                {{if TargetIPVersion == "udp6"}}
+                <option value="udp6" selected>udp6</option>
+                {{else}}
+                <option value="udp6">udp6</option>
+                {{/if}}
+            </select>
+            <label>目标udp版本</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="Password@123" id="input_client_password" type="text" class="validate" value="{{>Password}}">
+            <label for="input_client_password">密码</label>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <select id="sel_client_encrypt_method">
+                {{if EncryptMethod == 9}}
+                <option value="AES" selected>AES</option>
+                {{else}}
+                <option value="AES">AES</option>
+                {{/if}}
+                {{if EncryptMethod == 7}}
+                <option value="NONE" selected>NONE(不安全！！！)</option>
+                {{else}}
+                <option value="NONE">NONE(不安全！！！)</option>
+                {{/if}}
+            </select>
+            <label>加密算法</label>
+        </div>
+        
+        <div class="col s12">
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="input_client_remoteotherdata" class="materialize-textarea">{{>RemoteOtherData}}</textarea>
+                    <label for="input_client_remoteotherdata">从对端收到的其它信息</label>
+                </div>
+            </div>
+        </div>
+        <div class="col s12">
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="input_client_remoteaddrlist" class="materialize-textarea">{{>ServerAddrList}}</textarea>
+                    <label for="input_client_remoteaddrlist">对端地址列表</label>
+                </div>
+            </div>
+        </div>
+        <div class="col s12">
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="input_client_otherdata" class="materialize-textarea">{{>OtherData}}</textarea>
+                    <label for="input_client_otherdata">发送给对端的其它信息</label>
+                </div>
+            </div>
+        </div>
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="300" id="input_client_timeout" type="text" class="validate" value="{{>SessionTimeout}}">
+            <label for="input_client_timeout">会话超时时间</label>
+        </div>
+        
+        <div class="input-field col s12 m6 l4">
+            <input placeholder="30" id="input_client_saveclose" type="text" class="validate" value="{{>SaveClosedSession}}">
+            <label for="input_client_saveclose">保留超时的会话秒</label>
+        </div>
+        <div class="col s12 m6 l4">
+            <label>
+                {{if EncryptHeaderOnly == true}}
+                <input id="input_client_eho" type="checkbox"  checked="checked" class="filled-in" />
+                {{else}}
+                <input id="input_client_eho" type="checkbox" class="filled-in" />
+                {{/if}}
+                <span>仅加密头部</span>
+            </label>
+        </div>
+        <div class="col s12 m6 l4">
+            <label>
+                {{if HashHeaderOnly == true}}
+                <input id="input_client_hho" type="checkbox"  checked="checked" class="filled-in" />
+                {{else}}
+                <input id="input_client_hho" type="checkbox" class="filled-in" />
+                {{/if}}
+                <span>仅校验头部</span>
+            </label>
+        </div>
+    </script>
+</body>
+
+</html>
