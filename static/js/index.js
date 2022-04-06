@@ -32,8 +32,13 @@ var get_client_stat = function (code) {
   }
 }
 
-var get_size = function (c) {
+function bytesToSize(bytes) {
+  if (bytes === 0) return '0 B';
+  var k = 1000, // or 1024
+      sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+      i = Math.floor(Math.log(bytes) / Math.log(k));
 
+ return (bytes / Math.pow(k, i)).toPrecision(3) + ' ' + sizes[i];
 }
 
 
@@ -104,6 +109,8 @@ var list_server_conn = function () {
         for (i = 0; i < resp.length; i++) {
           resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
           resp[i]["DropRate"] = parseInt((1 - resp[i]["RecvPacketCount"] / resp[i]["RecvPacketSN"]) * 100);
+          resp[i]["SendSize"] = bytesToSize(resp[i]["SendSize"]);
+          resp[i]["RecvSize"] = bytesToSize(resp[i]["RecvSize"]);
         }
         connlist = resp;
       }
@@ -130,6 +137,8 @@ var list_client_conn = function () {
         for (i = 0; i < resp.length; i++) {
           resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
           resp[i]["DropRate"] = parseInt((1 - resp[i]["RecvPacketCount"] / resp[i]["RecvPacketSN"]) * 100);
+          resp[i]["SendSize"] = bytesToSize(resp[i]["SendSize"]);
+          resp[i]["RecvSize"] = bytesToSize(resp[i]["RecvSize"]);
         }
         connlist = resp;
       }
@@ -160,8 +169,8 @@ var list_server_session = function () {
           session_list.push({
             RemoteAddr: addr,
             TargetAddr: resp[addr][i]['TargetAddr'],
-            SendBytes: resp[addr][i]['SendBytes'],
-            RecvBytes: resp[addr][i]['RecvBytes'],
+            SendBytes: bytesToSize(resp[addr][i]['SendBytes']),
+            RecvBytes: bytesToSize(resp[addr][i]['RecvBytes']),
             ClosedTime: resp[addr][i]['ClosedTime'],
           })
         }
@@ -193,8 +202,8 @@ var list_client_session = function () {
           session_list.push({
             RemoteAddr: addr,
             TargetAddr: resp[addr][i]['TargetAddr'],
-            SendBytes: resp[addr][i]['SendBytes'],
-            RecvBytes: resp[addr][i]['RecvBytes'],
+            SendBytes: bytesToSize(resp[addr][i]['SendBytes']),
+            RecvBytes: bytesToSize(resp[addr][i]['RecvBytes']),
             ClosedTime: resp[addr][i]['ClosedTime'],
           })
         }
