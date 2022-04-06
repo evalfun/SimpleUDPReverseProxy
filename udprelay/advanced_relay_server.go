@@ -182,6 +182,7 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 					}
 				}
 				clientConn = NewAdvancedRelayConn(this.conn, remoteAddr, this.password, this.encryptMethod, this.encryptHeaderOnly, this.hashHeaderOnly, this.localName, this.otherData, this.sessionTimeout, this.bufSize)
+				clientConn.SetTargetAddr(this.target.String(), this.targetIPVersion)
 				this.clientConn[remoteAddr.String()] = clientConn
 				log.Printf("Server %s created a new connection", this.localName)
 			}

@@ -32,7 +32,7 @@ var get_client_stat = function (code) {
   }
 }
 
-var get_size = function(c){
+var get_size = function (c) {
 
 }
 
@@ -56,7 +56,7 @@ var list_client = function () {
     type: "GET",
     url: "/api/client/list",
     success: function (resp) {
-      
+
       for (ins_id in resp) {
         resp[ins_id]['Stat'] = get_client_stat(resp[ins_id]['Stat']);
         if (resp[ins_id]["ConnectionStat"] != null) {
@@ -72,11 +72,11 @@ var list_client = function () {
           resp[ins_id]["RemoteName"] = "";
           resp[ins_id]["RemoteAddr"] = "";
           resp[ins_id]["RemoteOtherData"] = "";
-          
+
         }
-        if (resp[ins_id]["ServerAddrList"] != null){
+        if (resp[ins_id]["ServerAddrList"] != null) {
           ServerAddrList = "";
-          for(i=0; i<resp[ins_id]["ServerAddrList"].length; i++){
+          for (i = 0; i < resp[ins_id]["ServerAddrList"].length; i++) {
             ServerAddrList = ServerAddrList + resp[ins_id]["ServerAddrList"][i] + '\n';
           }
           resp[ins_id]["ServerAddrList"] = ServerAddrList;
@@ -98,15 +98,16 @@ var list_server_conn = function () {
     dataType: "json",
     data: JSON.stringify({ InstanceID: server_instance_id }),
     success: function (resp) {
-      if(resp == null){
+      if (resp == null) {
         connlist = [];
-        return;
+      } else {
+        for (i = 0; i < resp.length; i++) {
+          resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
+          resp[i]["DropRate"] = parseInt((1 - resp[i]["RecvPacketCount"] / resp[i]["RecvPacketSN"]) * 100);
+        }
+        connlist = resp;
       }
-      for(i=0; i<resp.length; i++){
-        resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
-        resp[i]["DropRate"] = parseInt((1-resp[i]["RecvPacketCount"]/resp[i]["RecvPacketSN"])*100);
-      }
-      connlist = resp;
+
       tpl = $.templates('#jsr-connlist');
       final = tpl.render({ data: resp });
       var a = document.getElementById("div_server_conn_list");
@@ -123,15 +124,15 @@ var list_client_conn = function () {
     dataType: "json",
     data: JSON.stringify({ InstanceID: client_instance_id }),
     success: function (resp) {
-      if(resp == null){
+      if (resp == null) {
         connlist = [];
-        return;
+      } else {
+        for (i = 0; i < resp.length; i++) {
+          resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
+          resp[i]["DropRate"] = parseInt((1 - resp[i]["RecvPacketCount"] / resp[i]["RecvPacketSN"]) * 100);
+        }
+        connlist = resp;
       }
-      for(i=0; i<resp.length; i++){
-        resp[i]["ConnectStat"] = get_connection_stat(resp[i]["ConnectStat"]);
-        resp[i]["DropRate"] = parseInt((1-resp[i]["RecvPacketCount"]/resp[i]["RecvPacketSN"])*100);
-      }
-      connlist = resp;
       tpl = $.templates('#jsr-connlist');
       final = tpl.render({ data: resp });
       var a = document.getElementById("div_client_conn_list");

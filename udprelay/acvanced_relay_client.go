@@ -319,6 +319,7 @@ func (this *AdvancedRelayClient) check_session_proc() {
 				}
 			}
 			this.serverConnLock.Lock()
+			reConnect := false
 			for k := range this.serverConn {
 				if this.serverConn[k].IsClosed() == true {
 					// 与服务器的连接超时，断开连接。并重新开始连接
@@ -326,13 +327,20 @@ func (this *AdvancedRelayClient) check_session_proc() {
 					if this.stat == ARCL_STAT_CLOSED {
 						break
 					}
-					this.stat = ARCL_STAT_CONNECTINT
-					this.StartConnect()
-
 					log.Printf("Client %s connection to server timeout.Retry connect to available server.", this.localName)
+					reConnect = true
+					break
+					// this.stat = ARCL_STAT_CONNECTINT
+					// this.StartConnect()
+
 				}
 			}
 			this.serverConnLock.Unlock()
+			if reConnect == true {
+				this.stat = ARCL_STAT_CONNECTINT
+				this.StartConnect()
+			}
+
 			time.Sleep(1 * time.Second)
 		} else {
 			time.Sleep(1 * time.Second)

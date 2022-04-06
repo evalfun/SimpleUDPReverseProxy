@@ -119,6 +119,11 @@ func (this *AdvancedRelayConn) ClientInit(targetAddr string, targetIPVersion str
 	this.Connect()
 }
 
+func (this *AdvancedRelayConn) SetTargetAddr(targetAddr string, targetIPVersion string) {
+	this.targetAddr = targetAddr
+	this.targetIPVersion = targetIPVersion
+}
+
 //获取更多状态
 func (this *AdvancedRelayConn) GetConnStat() *ConnectionStat {
 	stat := &ConnectionStat{
