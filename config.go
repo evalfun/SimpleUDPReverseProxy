@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"main/crypts"
+	"main/udprelay"
 	"strconv"
 	"strings"
 )
@@ -24,6 +25,7 @@ type AdvancedUDPRelayServerConfig struct {
 	LocalName         string
 	OtherData         string
 	StunServer        string
+	Tracker           *udprelay.TrackerConfig
 }
 
 type AdvancedUDPRelayClientConfig struct {
@@ -44,6 +46,7 @@ type AdvancedUDPRelayClientConfig struct {
 	CompressType      uint8
 	StunServer        string
 	ServerAddr        []string
+	Tracker           *udprelay.TrackerConfig
 }
 
 type UDPRelayConfig struct {
@@ -117,6 +120,7 @@ func saveConfig() error {
 		config.StunServer = stat.StunServer
 		config.ServerAddr = stat.ServerAddrList
 		config.HashHeaderOnly = stat.HashHeaderOnly
+		config.Tracker = advancedRelayClientMap[i].GetTrackerConfig()
 		rconfig.Client = append(rconfig.Client, &config)
 	}
 	for i := range advancedRelayServerMap {
@@ -142,6 +146,7 @@ func saveConfig() error {
 		config.OtherData = stat.OtherData
 		config.StunServer = stat.StunServer
 		config.HashHeaderOnly = stat.HashHeaderOnly
+		config.Tracker = advancedRelayServerMap[i].GetTrackerConfig()
 		rconfig.Server = append(rconfig.Server, &config)
 	}
 	data, err := json.Marshal(rconfig)

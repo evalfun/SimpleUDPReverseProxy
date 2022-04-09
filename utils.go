@@ -40,6 +40,9 @@ func createAdvancedRelayClient(config *AdvancedUDPRelayClientConfig) error {
 	}
 	var serverAddrList []*net.UDPAddr
 	for i := range config.ServerAddr {
+		if config.ServerAddr[i] == "" {
+			continue
+		}
 		serverAddr, err := udprelay.ResolveUDPAddr("udp", config.ServerAddr[i], 10)
 		if err == nil {
 			serverAddrList = append(serverAddrList, serverAddr)
@@ -47,6 +50,7 @@ func createAdvancedRelayClient(config *AdvancedUDPRelayClientConfig) error {
 	}
 	instance.SetServerAddrList(serverAddrList)
 	instance.StartConnect()
+	instance.SetTrackerConfig(config.Tracker)
 	return nil
 }
 
@@ -73,16 +77,13 @@ func createAdvancedRelayServer(config *AdvancedUDPRelayServerConfig) error {
 		return errors.New("Create instance error:" + err.Error())
 	}
 	advancedRelayServerMap[config.InstanceID] = instance
-	var target *net.UDPAddr
-	target = nil
-	if config.Target != "" {
-		target, _ = udprelay.ResolveUDPAddr(config.TargetIPVersion, config.Target, 10)
-		instance.SetTargetAddr(config.TargetIPVersion, target)
-	}
+
+	instance.SetTargetAddr(config.TargetIPVersion, config.Target)
 	if config.StunServer != "" {
 		instance.SetStunServer(config.StunServer)
 	}
-	return nil
+	err = instance.SetTrackerConfig(config.Tracker)
+	return err
 }
 
 func createUDPRelay(config *UDPRelayConfig) error {

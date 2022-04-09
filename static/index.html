@@ -11,6 +11,7 @@
     <script type="text/javascript" src="js/jquery-3.6.0.min.js"></script>
     <script type="text/javascript" src="js/jsrender.js"></script>
     <script type="text/javascript" src="js/materialize.min.js"></script>
+    <script type="text/javascript" src="js/base64.js"></script>
     <script type="text/javascript" src="js/index.js"></script>
     <style>
         #container {
@@ -20,6 +21,12 @@
         .info_table {
             display: inline-block;
             width: 100%;
+        }
+
+        th,
+        td {
+            padding-top: 5px;
+            padding-bottom: 5px;
         }
     </style>
 </head>
@@ -94,7 +101,26 @@
                     <span class="helper-text">发送给对端的其它信息</span>
                 </div>
             </div>
-            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 10px;">
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 6px;">
+                <p>Tracker设置</p>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_server_tracker" type="text" class="validate">
+                    <label for="in_create_server_tracker">Tracker服务器地址</label>
+                    <span class="helper-text" data-error="wrong">服务器使用ws/wss(websocket)协议</span>
+                </div>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_server_tracker_server_id" type="text" class="validate">
+                    <label for="in_create_server_tracker_server_id">服务端id</label>
+                    <span class="helper-text" data-error="wrong">必须为uuid形式 不知道怎么填就随机生成一个</span>
+                </div>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_server_tracker_user_id" type="text" class="validate">
+                    <label for="in_create_server_tracker_user_id">用户id</label>
+                    <span class="helper-text" data-error="wrong">必须为uuid形式 不知道怎么填就随机生成一个</span>
+                </div>
+                <span class="col s12">客户端可以通过服务端id向tracker获取到服务端的地址，并发出指令让服务端主动连接客户端。<br/>为了保证服务端id不被其他人盗用，在您初次选择此服务端id和用户id的组合后，tracker服务器将关联服务端id和用户id一段时间。在此时间内，只有提交正确的用户id和服务端id才能正常连接tracker。第二个服务端连接tracker后原本的服务端将被踢下线。</span>
+            </div>
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 6px;">
                 <p>以下参数不建议更改</p>
                 <div class="input-field col s12 m6 l4">
                     <input id="in_create_server_buf_size" placeholder="2048" value="2048" type="text" class="validate">
@@ -106,25 +132,24 @@
                     <input id="in_create_server_session_timeout" placeholder="120" value="120" type="text"
                         class="validate">
                     <label for="in_create_server_session_timeout">会话超时</label>
-                    <span class="helper-text">在此时间内没有发送或接收任何数据就关闭会话</span>
+                    <span class="helper-text">超时后关闭会话</span>
                 </div>
                 <div class="input-field col s12 m6 l4">
                     <input id="in_create_server_save_close" placeholder="0" type="text" value="0" class="validate">
                     <label for="in_create_server_save_close">会话保留</label>
                     <span class="helper-text">在此时间后删除关闭的会话。单位为秒</span>
                 </div>
-                
+
                 <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_server_eho" />
                     <span>仅加密头部</span>
-                    <span class="helper-text">不会对载荷进行加密和校验</span>
+                    <span class="helper-text">密码会裸奔 不建议使用</span>
                 </label>
                 <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_server_hho" />
                     <span>仅校验头部</span>
-                    <span class="helper-text">勾上我能显著减少cpu使用</span>
+                    <span class="helper-text">可能会减少cpu使用</span>
                 </label>
-                
             </div>
         </div>
         <div class="modal-footer">
@@ -201,7 +226,25 @@
                     <span class="helper-text">服务端地址，一行一个</span>
                 </div>
             </div>
-            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 10px;">
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 6px;">
+                <p>Tracker设置</p>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_client_tracker" type="text" class="validate">
+                    <label for="in_create_client_tracker">Tracker服务器地址</label>
+                    <span class="helper-text" data-error="wrong">服务器使用http/https协议</span>
+                </div>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_client_tracker_server_id" type="text" class="validate">
+                    <label for="in_create_client_tracker_server_id">服务端id</label>
+                    <span class="helper-text" data-error="wrong">必须为uuid形式 不知道怎么填就随机生成一个</span>
+                </div>
+                <div class="input-field col s12 m12 l12">
+                    <input id="in_create_client_tracker_user_id" type="text" class="validate">
+                    <label for="in_create_client_tracker_user_id">用户id</label>
+                    <span class="helper-text" data-error="wrong">必须为uuid形式 可留空</span>
+                </div>
+            </div>
+            <div class="row" style="border: 2px solid;border-color: rgb(171, 171, 171);border-radius: 6px;">
                 <p>以下参数不建议更改</p>
                 <div class="input-field col s12 m6 l4">
                     <input id="in_create_client_buf_size" placeholder="2048" value="2048" type="text" class="validate">
@@ -212,7 +255,7 @@
                     <input id="in_create_client_session_timeout" placeholder="120" value="120" type="text"
                         class="validate">
                     <label for="in_create_client_session_timeout">会话超时</label>
-                    <span class="helper-text">在此时间内没有发送或接收任何数据就关闭会话</span>
+                    <span class="helper-text">超时后关闭会话</span>
                 </div>
                 <div class="input-field col s12 m6 l4">
                     <input id="in_create_client_save_close" placeholder="0" type="text" value="0" class="validate">
@@ -222,12 +265,12 @@
                 <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_client_eho" />
                     <span>仅加密头部</span>
-                    <span class="helper-text">不会对载荷进行加密和校验</span>
+                    <span class="helper-text">密码会裸奔 不建议使用</span>
                 </label>
                 <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_client_hho" />
                     <span>仅校验头部</span>
-                    <span class="helper-text">勾上我能显著减少cpu使用</span>
+                    <span class="helper-text">可能会减少cpu使用</span>
                 </label>
             </div>
         </div>
@@ -256,6 +299,7 @@
                         <li class="tab col s3"><a class="active" href="#client_info">信息</a></li>
                         <li class="tab col s3"><a href="#client_conn" onclick="list_client_conn()">连接</a></li>
                         <li class="tab col s3"><a href="#client_session" onclick="list_client_session()">会话</a></li>
+                        <li class="tab col s3"><a href="#client_tracker" onclick="get_client_tracker()">Tracker</a></li>
                     </ul>
                 </div>
                 <div id="client_info" class="col s12">
@@ -272,6 +316,37 @@
                 <div id="client_session" class="col s12">
                     <p>客户端会话</p>
                     <div id="div_client_session"></div>
+                </div>
+                <div id="client_tracker" class="col s12">
+                    <p>Tracker</p>
+                    <p>Tracker可以自动获取到服务端与客户端的ip地址，并同时向对方发起连接</p>
+                    <div class="row" id="div_client_tracker">
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_client_tracker" type="text" class="validate">
+                            <label for="in_client_tracker">Tracker服务器地址</label>
+                            <span class="helper-text" data-error="wrong">服务器使用http/https协议</span>
+                        </div>
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_client_tracker_server_id" type="text" class="validate">
+                            <label for="in_client_tracker_server_id">服务端id</label>
+                            <span class="helper-text" data-error="wrong">必须为uuid形式 可留空</span>
+                        </div>
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_client_tracker_user_id" type="text" class="validate">
+                            <label for="in_client_tracker_user_id">用户id</label>
+                            <span class="helper-text" data-error="wrong">必须为uuid形式/可留空</span>
+                        </div>
+                        <div class="col s12 m12 l12">
+                            <p>状态：<span id="sp_client_tracker_stat"></span></p>
+                        </div>
+                        <div class="col s12 m12 l12">
+                            <a class="waves-effect waves-teal btn-flat" onclick="set_client_tracker()">更新Tracker</a>
+                        </div>
+                        <div class="input-field col s12">
+                            <textarea disabled id="in_client_fc_link" class="materialize-textarea "></textarea>
+                            <label for="in_client_fc_link">快速配置链接</label>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -291,6 +366,7 @@
                         <li class="tab col s3"><a class="active" href="#server_info">信息</a></li>
                         <li class="tab col s3"><a href="#server_conn" onclick="list_server_conn()">连接</a></li>
                         <li class="tab col s3"><a href="#server_session" onclick="list_server_session()">会话</a></li>
+                        <li class="tab col s3"><a href="#server_tracker" onclick="get_server_tracker()">Tracker</a></li>
                     </ul>
                 </div>
                 <div id="server_info" class="col s12">
@@ -318,6 +394,37 @@
                     <p>服务端会话</p>
                     <div id="div_server_session"></div>
                 </div>
+                <div id="server_tracker" class="col s12">
+                    <p>Tracker</p>
+                    <p>Tracker可以自动获取到服务端与客户端的ip地址，并同时向对方发起连接</p>
+                    <div class="row" id="div_server_tracker">
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_server_tracker" type="text" class="validate">
+                            <label for="in_server_tracker">Tracker服务器地址</label>
+                            <span class="helper-text" data-error="wrong">服务器使用ws/wss(websocket)协议</span>
+                        </div>
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_server_tracker_server_id" type="text" class="validate">
+                            <label for="in_server_tracker_server_id">服务端id</label>
+                            <span class="helper-text" data-error="wrong">必须为uuid形式 与用户id短时间绑定</span>
+                        </div>
+                        <div class="input-field col s12 m12 l12">
+                            <input id="in_server_tracker_user_id" type="text" class="validate">
+                            <label for="in_server_tracker_user_id">用户id</label>
+                            <span class="helper-text" data-error="wrong">必须为uuid形式 </span>
+                        </div>
+                        <div class="col s12 m12 l12">
+                            <p>状态：<span id="sp_server_tracker_stat"></span></p>
+                        </div>
+                        <div class="col s12 m12 l12">
+                            <a class="waves-effect waves-teal btn-flat" onclick="set_server_tracker()">更新Tracker</a>
+                        </div>
+                        <div class="input-field col s12">
+                            <textarea disabled id="in_server_fc_link" class="materialize-textarea "></textarea>
+                            <label for="in_server_fc_link">快速配置链接</label>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         <div class="modal-footer">
@@ -327,7 +434,7 @@
     </div>
     <nav>
         <div class="nav-wrapper">
-            <a href="#" class="brand-logo">UDP打洞机</a>
+            <a href="#" class="brand-logo">SimpleUDPReverseProxy</a>
             <ul id="nav-mobile" class="right hide-on-med-and-down">
                 <li><a href="javascript:void(0)" onclick="save_config()">保存配置</a></li>
             </ul>
@@ -351,6 +458,9 @@
                     <a class="btn-floating btn-large red">
                         <i class="large material-icons">add</i>
                     </a>
+                    <a class="btn-floating btn-large waves-effect waves-light hide-on-large-only">
+                        <i class="material-icons" onclick="save_config()">save</i>
+                    </a>
                 </div>
             </div>
             <div id="tab_content_server" class="col s12">
@@ -362,16 +472,31 @@
                     <a class="btn-floating btn-large red" onclick="show_create_server()">
                         <i class="large material-icons">add</i>
                     </a>
+                    <a class="btn-floating btn-large waves-effect waves-light hide-on-large-only">
+                        <i class="material-icons" onclick="save_config()">save</i>
+                    </a>
                 </div>
             </div>
             <div id="tab_content_client" class="col s12">
-                <p>高级udp转发客户端</p>
+                <div class="row">
+                    <div class="col s12">高级udp转发客户端</div>
+                    <div class="input-field col s10">
+                        <input placeholder="输入配置链接即可快速创建surp://...." id="in_create_client_fc_link" type="text" class="validate">
+                        <label for="in_create_client_fc_link"></label>
+                    </div>
+                    <div class="col s2">
+                        <a class="waves-effect waves-light btn" onclick="create_client_by_link()">创建</a>
+                    </div>
+                </div>
                 <div id="div_clientlist_table">
 
                 </div>
                 <div class="fixed-action-btn">
                     <a class="btn-floating btn-large red">
-                        <i class="large material-icons" onclick="show_create_client()">add</i>
+                        <i class="large material-icons" onclick="show_create_client('udp','AES')">add</i>
+                    </a>
+                    <a class="btn-floating btn-large waves-effect waves-light hide-on-large-only">
+                        <i class="material-icons" onclick="save_config()">save</i>
                     </a>
                 </div>
             </div>
@@ -790,6 +915,35 @@
                 <span>仅校验头部</span>
             </label>
         </div>
+    </script>
+    <script type="text/x-jsrender" id="jsr_in_create_client_target_version">
+        {{if TargetIPVersion == "udp"}}
+        <option value="udp" selected>udp</option>
+        {{else}}
+        <option value="udp">udp</option>
+        {{/if}}
+        {{if TargetIPVersion == "udp4"}}
+        <option value="udp4" selected>udp4</option>
+        {{else}}
+        <option value="udp4">udp4</option>
+        {{/if}}
+        {{if TargetIPVersion == "udp6"}}
+        <option value="udp6" selected>udp6</option>
+        {{else}}
+        <option value="udp6">udp6</option>
+        {{/if}}
+    </script>
+    <script type="text/x-jsrender" id="jsr_in_create_client_crypt_method">
+        {{if EncryptMethod == "AES"}}
+        <option value="AES" selected>AES</option>
+        {{else}}
+        <option value="AES">AES</option>
+        {{/if}}
+        {{if EncryptMethod == "NONE"}}
+        <option value="NONE" selected>NONE(不安全！！！)</option>
+        {{else}}
+        <option value="NONE">NONE(不安全！！！)</option>
+        {{/if}}
     </script>
 </body>
 

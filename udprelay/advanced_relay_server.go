@@ -1,8 +1,10 @@
 package udprelay
 
 import (
+	"crypto/rand"
 	"errors"
 	"log"
+	"math/big"
 	"net"
 	"sync"
 	"time"
@@ -41,11 +43,15 @@ type AdvancedRelayServer struct {
 	encryptMethod     int
 	encryptHeaderOnly bool
 	hashHeaderOnly    bool
-	target            *net.UDPAddr //如果不指定目标，则可以由客户端进行协商
+	target            string //如果不指定目标，则可以由客户端进行协商
 	targetIPVersion   string
 	localName         []byte
 	otherData         []byte
 	closed            bool
+	trackerConfig     *TrackerConfig
+	tracker           *ServerTracker
+	messageChan       chan *TrackerMessage
+	randomOffset      int64 //一个普通的随机值
 }
 
 //流程：初始化服务端，设置stun服务器，上报ip地址，等待连接
@@ -66,6 +72,7 @@ func NewAdvancedRelayServer(localPort int, bufSize int, sessionTimeout int, save
 		encryptMethod:     encryptMethod,
 		encryptHeaderOnly: encryptHeaderOnly,
 		hashHeaderOnly:    HashHeaderOnly,
+		messageChan:       make(chan *TrackerMessage),
 		session:           make(map[string]*StunSession),
 		clientConn:        make(map[string]*AdvancedRelayConn),
 	}
@@ -78,8 +85,11 @@ func NewAdvancedRelayServer(localPort int, bufSize int, sessionTimeout int, save
 		return nil, err
 	}
 	log.Printf("Server %s created", relay.localName)
+	_t, _ := rand.Int(rand.Reader, big.NewInt(19260817))
+	relay.randomOffset = _t.Int64()
 	go relay.recv_udp_proc()
 	go relay.check_session_proc()
+	go relay.trackerProc()
 	return relay, nil
 }
 
@@ -92,6 +102,51 @@ func (this *AdvancedRelayServer) GetSessionDict() map[string][]*SessionStat {
 		sessionDict[this.clientConn[k].remoteAddrString] = this.clientConn[k].GetSessionList()
 	}
 	return sessionDict
+}
+
+//从track接收信息，准备发起主动连接
+func (this *AdvancedRelayServer) trackerProc() {
+	for this.closed != true {
+		msg, ok := <-this.messageChan
+		if !ok {
+			return
+		}
+		if msg.MessageType == TK_MSG_TYPE_CONNECT {
+			for i := range msg.AddrList {
+				addr, err := ResolveUDPAddr("udp", msg.AddrList[i], 5)
+				if err == nil {
+					this.ReqClientConn(addr)
+				}
+			}
+		} else if msg.MessageType == TK_MSG_TYPE_CONNECT_SUCCESS {
+			log.Printf("Server %s connected to tracker success", this.localName)
+			this.SendAddrtoTracker()
+			//tracker成功连接的时候汇报一波
+		}
+	}
+}
+func (this *AdvancedRelayServer) GetTrackerConfig() *TrackerConfig {
+	return this.trackerConfig
+}
+func (this *AdvancedRelayServer) GetTrackerStat() (string, int) {
+	return this.tracker.GetStat()
+}
+func (this *AdvancedRelayServer) SetTrackerConfig(config *TrackerConfig) error {
+	if this.tracker != nil {
+		this.tracker.Close()
+	}
+	if config != nil {
+		if config.ServerID == "" && config.ServerURL == "" && config.UserID == "" {
+			config = nil
+		} else {
+			if !IsValidUUID(config.ServerID) || !IsValidUUID(config.UserID) {
+				return errors.New("invalid ServerID or UserID")
+			}
+			this.tracker = NewServerTracker(config, this.messageChan)
+		}
+	}
+	this.trackerConfig = config
+	return nil
 }
 
 func (this *AdvancedRelayServer) GetConnectionList() []*ConnectionStat {
@@ -120,15 +175,19 @@ func (this *AdvancedRelayServer) GetServerStat() *AdvancedRelayServerStat {
 		EncryptHeaderOnly: this.encryptHeaderOnly,
 		HashHeaderOnly:    this.hashHeaderOnly,
 	}
-	if this.target == nil {
-		stat.Target = ""
-	} else {
-		stat.Target = this.target.String()
-	}
+	stat.Target = this.target
 	// for k := range this.clientConn {
 	// 	stat.ConnectionStat = append(stat.ConnectionStat, this.clientConn[k].GetConnStat())
 	// }
 	return stat
+}
+
+func (this *AdvancedRelayServer) SendAddrtoTracker() {
+	if this.tracker == nil {
+		return
+	}
+	addrList := []string{this.localPublicAddr}
+	this.tracker.SendAddrList(addrList)
 }
 
 //从客户端接收udp数据 发送给目标服务器
@@ -150,7 +209,12 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 				log.Printf("Server %s created a new stun session", this.localName)
 			} else {
 				session.Send(data[:read_count])
-				this.localPublicAddr = session.GetPublicAddr()
+				newAddr := session.GetPublicAddr()
+				if this.localPublicAddr != newAddr {
+					this.localPublicAddr = session.GetPublicAddr()
+					this.SendAddrtoTracker()
+					//收到新ip的时候就向tracker汇报
+				}
 			}
 		} else if remoteAddr.Port == 3479 {
 			continue
@@ -182,7 +246,7 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 					}
 				}
 				clientConn = NewAdvancedRelayConn(this.conn, remoteAddr, this.password, this.encryptMethod, this.encryptHeaderOnly, this.hashHeaderOnly, this.localName, this.otherData, this.sessionTimeout, this.bufSize)
-				clientConn.SetTargetAddr(this.target.String(), this.targetIPVersion)
+				clientConn.SetTargetAddr(this.target, this.targetIPVersion)
 				this.clientConn[remoteAddr.String()] = clientConn
 				log.Printf("Server %s created a new connection", this.localName)
 			}
@@ -204,15 +268,22 @@ func (this *AdvancedRelayServer) GetConnByRemoteAddr(addr string) *AdvancedRelay
 
 //发送主动连接，请求连接到客户端
 func (this *AdvancedRelayServer) ReqClientConn(remoteAddr *net.UDPAddr) {
-	log.Printf("Server %s try connect to client %s", this.localName, remoteAddr.String())
+	remoteAddrString := remoteAddr.String()
+	log.Printf("Server %s try connect to client %s", this.localName, remoteAddrString)
 	this.clientConnLock.Lock()
 	defer this.clientConnLock.Unlock()
-	clientConn := this.GetConnByRemoteAddr(remoteAddr.String())
+	clientConn := this.GetConnByRemoteAddr(remoteAddrString)
 	if clientConn != nil {
-		return
+		if clientConn.IsClosed() == false {
+			return
+		} else { // 如果连接已经存在但关闭了，那就删除当前连接，重新建立一个
+			delete(this.clientConn, remoteAddrString)
+		}
 	}
+
 	clientConn = NewAdvancedRelayConn(this.conn, remoteAddr, this.password, this.encryptMethod, this.encryptHeaderOnly, this.hashHeaderOnly, this.localName, this.otherData, this.sessionTimeout, this.bufSize)
-	this.clientConn[remoteAddr.String()] = clientConn
+	clientConn.SetTargetAddr(this.target, this.targetIPVersion)
+	this.clientConn[remoteAddrString] = clientConn
 	clientConn.RequestConnect()
 }
 
@@ -227,8 +298,8 @@ func (this *AdvancedRelayServer) SetSessionSave(timeout int) {
 }
 
 //设置用户目标服务器地址
-func (this *AdvancedRelayServer) SetTargetAddr(targetIPVersion string, target *net.UDPAddr) {
-	log.Printf("Server %s target user server set to %s %s", this.localName, targetIPVersion, target.String())
+func (this *AdvancedRelayServer) SetTargetAddr(targetIPVersion string, target string) {
+	log.Printf("Server %s target user server set to %s %s", this.localName, targetIPVersion, target)
 	this.targetIPVersion = targetIPVersion
 	this.target = target
 }
@@ -275,6 +346,11 @@ func (this *AdvancedRelayServer) check_session_proc() {
 			}
 		}
 		this.clientConnLock.Unlock()
+		if (currentTime+this.randomOffset)%1200 == 0 {
+			//向tracker汇报自己的ip
+			//为了避免所有服务端同时向tracker汇报，就加个随机值
+			this.SendAddrtoTracker()
+		}
 		time.Sleep(1 * time.Second)
 	}
 }
@@ -282,7 +358,9 @@ func (this *AdvancedRelayServer) check_session_proc() {
 func (this *AdvancedRelayServer) Close() {
 	this.closed = true
 	this.conn.Close()
-
+	if this.tracker != nil {
+		this.tracker.Close()
+	}
 	for k := range this.session {
 		this.session[k].Close("advanced relay server closed")
 	}
@@ -291,4 +369,5 @@ func (this *AdvancedRelayServer) Close() {
 	for k := range this.clientConn {
 		this.clientConn[k].Close("server stop")
 	}
+	close(this.messageChan)
 }

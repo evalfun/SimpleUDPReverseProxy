@@ -32,13 +32,24 @@ var get_client_stat = function (code) {
   }
 }
 
+var get_crypt_method = function (code) {
+  switch (code) {
+    case 7:
+      return "NONE";
+    case 9:
+      return "AES";
+    default:
+      return "未知";
+  }
+}
+
 function bytesToSize(bytes) {
   if (bytes === 0) return '0 B';
   var k = 1000, // or 1024
-      sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
-      i = Math.floor(Math.log(bytes) / Math.log(k));
+    sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
+    i = Math.floor(Math.log(bytes) / Math.log(k));
 
- return (bytes / Math.pow(k, i)).toPrecision(3) + ' ' + sizes[i];
+  return (bytes / Math.pow(k, i)).toPrecision(3) + ' ' + sizes[i];
 }
 
 
@@ -61,7 +72,6 @@ var list_client = function () {
     type: "GET",
     url: "/api/client/list",
     success: function (resp) {
-
       for (ins_id in resp) {
         resp[ins_id]['Stat'] = get_client_stat(resp[ins_id]['Stat']);
         if (resp[ins_id]["ConnectionStat"] != null) {
@@ -175,7 +185,7 @@ var list_server_session = function () {
           })
         }
       }
-      console.log(session_list);
+      //console.log(session_list);
       final = tpl.render({ data: session_list });
       var a = document.getElementById("div_server_session");
       //console.log(final);
@@ -275,7 +285,22 @@ var show_create_server = function () {
   $('select').formSelect();
   M.updateTextFields();
 }
-var show_create_client = function () {
+
+
+var show_create_client = function (ip, crypt) {
+
+  tpl = $.templates('#jsr_in_create_client_target_version');
+  final = tpl.render({TargetIPVersion:ip});
+  var a = document.getElementById("in_create_client_target_version");
+  a.innerHTML = final;
+
+
+  tpl = $.templates('#jsr_in_create_client_crypt_method');
+  final = tpl.render({EncryptMethod:crypt});
+  var a = document.getElementById("in_create_client_crypt_method");
+  a.innerHTML = final;
+
+
   var instance = M.Modal.getInstance(document.getElementById("modal_create_client"));
 
   instance.open();
@@ -298,6 +323,11 @@ var create_server = function () {
   hash_header_only = document.getElementById("in_create_server_hho").checked;
   local_name = $("#in_create_server_local_name").val();
   other_data = $("#in_create_server_other_data").val();
+  tracker_config = {
+    ServerID: $("#in_create_server_tracker_server_id").val(),
+    UserID: $("#in_create_server_tracker_user_id").val(),
+    ServerURL: $("#in_create_server_tracker").val(),
+  }
   var data = {
     InstanceID: instance_id,
     LocalPort: local_port,
@@ -313,6 +343,7 @@ var create_server = function () {
     LocalName: local_name,
     OtherData: other_data,
     StunServer: stun_server,
+    Tracker: tracker_config,
   };
   //console.log(data);
   $.ajax({
@@ -347,6 +378,11 @@ var create_client = function () {
   local_name = $("#in_create_client_local_name").val();
   other_data = $("#in_create_client_other_data").val();
   server_addr = $("#in_create_client_remote_addr").val().split("\n");
+  tracker_config = {
+    ServerID: $("#in_create_client_tracker_server_id").val(),
+    UserID: $("#in_create_client_tracker_user_id").val(),
+    ServerURL: $("#in_create_client_tracker").val(),
+  }
   var data = {
     InstanceID: instance_id,
     LocalPort: local_port,
@@ -365,6 +401,7 @@ var create_client = function () {
     StunServer: stun_server,
     CompressType: 0,
     ServerAddr: server_addr,
+    Tracker: tracker_config,
   };
   //console.log(data);
   $.ajax({
@@ -479,9 +516,6 @@ var save_config = function () {
     type: "GET",
     url: "/api/config/save",
     contentType: 'application/json',
-    data: JSON.stringify({
-      InstanceID: client_instance_id,
-    }),
     success: function (resp) {
       M.toast({ html: '保存成功' });
       list_server();
@@ -492,6 +526,200 @@ var save_config = function () {
   });
 }
 
+var get_server_tracker = function () {
+  $.ajax({
+    type: "POST",
+    url: "/api/server/tracker",
+    contentType: 'application/json',
+    data: JSON.stringify({
+      InstanceID: server_instance_id,
+    }),
+    success: function (resp) {
+      $("#in_server_tracker").val(resp.ServerURL);
+      $("#in_server_tracker_server_id").val(resp.ServerID);
+      $("#in_server_tracker_user_id").val(resp.UserID);
+      $("#sp_server_tracker_stat").text(resp.Message);
+
+      var target;
+      if (serverlist[server_instance_id].Target == "") {
+        target = "[Edit Me]";
+      } else {
+        target = serverlist[server_instance_id].Target
+      }
+      var client_tracker_url;
+      if (resp.ServerURL.startsWith("wss")){
+        client_tracker_url = resp.ServerURL.replace("wss", "https")
+      }else{
+        client_tracker_url = resp.ServerURL.replace("ws", "http")
+      }
+      var tracker_config = {
+        ServerID: resp.ServerID,
+        UserID: "",
+        ServerURL: client_tracker_url,
+      };
+      encrypt_method = get_crypt_method(serverlist[server_instance_id].EncryptMethod);
+      var client_config = {
+        InstanceID: 0,
+        ListenerPort: 0,
+        LocalPort: 0,
+        BufSize: serverlist[server_instance_id].BufSize,
+        Target: target,
+        TargetIPVersion: serverlist[server_instance_id].TargetIPVersion,
+        SessionTimeout: serverlist[server_instance_id].SessionTimeout,
+        SaveClosedSession: serverlist[server_instance_id].SaveClosedSession,
+        Password: serverlist[server_instance_id].Password,
+        CryptMethod: encrypt_method,
+        EncryptHeaderOnly: serverlist[server_instance_id].EncryptHeaderOnly,
+        HashHeaderOnly: serverlist[server_instance_id].HashHeaderOnly,
+        StunServer: serverlist[server_instance_id].StunServer,
+        Tracker: tracker_config,
+      }
+      $("#in_server_fc_link").val("surp://" + Base64.encode(JSON.stringify(client_config)));
+      M.updateTextFields();
+      M.textareaAutoResize($('#in_server_fc_link'));
+    },
+    error: function (xhr, status, error) {
+      show_info("失败", xhr.responseText);
+    }
+  });
+}
+
+var set_server_tracker = function () {
+  data = {
+    InstanceID: server_instance_id,
+    ServerURL: $("#in_server_tracker").val(),
+    ServerID: $("#in_server_tracker_server_id").val(),
+    UserID: $("#in_server_tracker_user_id").val(),
+  }
+  $.ajax({
+    type: "POST",
+    url: "/api/server/tracker/set",
+    contentType: 'application/json',
+    data: JSON.stringify(data),
+    success: function (resp) {
+      M.toast({ html: '更新成功' });
+      get_server_tracker();
+    },
+    error: function (xhr, status, error) {
+      show_info("失败", xhr.responseText);
+    }
+  });
+}
+
+
+var get_client_tracker = function () {
+  $.ajax({
+    type: "POST",
+    url: "/api/client/tracker",
+    contentType: 'application/json',
+    data: JSON.stringify({
+      InstanceID: client_instance_id,
+    }),
+    success: function (resp) {
+      $("#in_client_tracker").val(resp.ServerURL);
+      $("#in_client_tracker_server_id").val(resp.ServerID);
+      $("#in_client_tracker_user_id").val(resp.UserID);
+      $("#sp_client_tracker_stat").text(resp.Message);
+      
+      
+      target = clientlist[client_instance_id].Target;
+      client_tracker_url = resp.ServerURL
+      var tracker_config = {
+        ServerID: resp.ServerID,
+        UserID: "",
+        ServerURL: client_tracker_url,
+      };
+      encrypt_method = get_crypt_method(clientlist[client_instance_id].CryptMethod);
+      //console.log(clientlist[client_instance_id]);
+      var client_config = {
+        InstanceID: 0,
+        ListenerPort: 0,
+        LocalPort: 0,
+        BufSize: clientlist[client_instance_id].BufSize,
+        Target: target,
+        TargetIPVersion: clientlist[client_instance_id].TargetIPVersion,
+        SessionTimeout: clientlist[client_instance_id].SessionTimeout,
+        SaveClosedSession: clientlist[client_instance_id].SaveClosedSession,
+        Password: clientlist[client_instance_id].Password,
+        CryptMethod: encrypt_method,
+        EncryptHeaderOnly: clientlist[client_instance_id].EncryptHeaderOnly,
+        HashHeaderOnly: clientlist[client_instance_id].HashHeaderOnly,
+        StunServer: clientlist[client_instance_id].StunServer,
+        Tracker: tracker_config,
+      }
+      $("#in_client_fc_link").val("surp://" + Base64.encode(JSON.stringify(client_config)));
+      M.updateTextFields();
+      M.textareaAutoResize($('#in_client_fc_link'));
+    },
+    error: function (xhr, status, error) {
+      show_info("失败", xhr.responseText);
+    }
+  });
+}
+
+var set_client_tracker = function () {
+  data = {
+    InstanceID: client_instance_id,
+    ServerURL: $("#in_client_tracker").val(),
+    ServerID: $("#in_client_tracker_server_id").val(),
+    UserID: $("#in_client_tracker_user_id").val(),
+  }
+  $.ajax({
+    type: "POST",
+    url: "/api/client/tracker/set",
+    contentType: 'application/json',
+    data: JSON.stringify(data),
+    success: function (resp) {
+      M.toast({ html: '更新成功' });
+      //get_client_tracker();
+    },
+    error: function (xhr, status, error) {
+      show_info("失败", xhr.responseText);
+    }
+  });
+}
+
+var create_client_by_link = function () {
+  link = $("#in_create_client_fc_link").val();
+  if (!link.startsWith("surp://")) {
+    show_info("错误", "链接格式错误");
+    return;
+  }
+  try {
+    link = Base64.decode(link.substr(7))
+  }
+  catch (err) {
+    show_info("解析链接错误", "base64: "+err.message);
+    return
+  }
+  var client_config;
+  try{
+    client_config = JSON.parse(link);
+  }
+  catch (err) {
+    show_info("解析链接错误", "json: "+err.message);
+    return
+  }
+  $("#in_create_client_ins_id").val(client_config.InstanceID);
+  $("#in_create_client_listener_port").val(client_config.ListenerPort);
+  $("#in_create_client_local_port").val(client_config.LocalPort);
+  $("#in_create_client_password").val(client_config.Password);
+  $("#in_create_client_target").val(client_config.Target);
+  //console.log(client_config.Target);
+  $("#in_create_client_stun").val(client_config.StunServer);
+  $("#in_create_client_local_name").val("_"+Math.random().toString(10).slice(-8));
+  $("#in_create_client_tracker").val(client_config.Tracker.ServerURL);
+  $("#in_create_client_tracker_server_id").val(client_config.Tracker.ServerID);
+
+  $("#in_create_client_buf_size").val(client_config.BufSize);
+  $("#in_create_client_session_timeout").val(client_config.SessionTimeout);
+
+  document.getElementById("in_create_client_hho").checked = client_config.HashHeaderOnly;
+  document.getElementById("in_create_client_eho").checked = client_config.EncryptHeaderOnly;
+
+  $("#in_create_client_save_close").val(client_config.SaveClosedSession);
+  show_create_client(client_config.TargetIPVersion, client_config.CryptMethod);
+}
 
 var show_info = function (title, content) {
   $("#modal_info_title").text(title);

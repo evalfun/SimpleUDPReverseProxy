@@ -2,6 +2,7 @@ package udprelay
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net"
@@ -186,13 +187,17 @@ func (this *AdvancedRelayConn) RequestConnect() {
 // 服务端使用！！
 func (this *AdvancedRelayConn) requestConnectProc() {
 	//一直向客户端发送请求连接报文，直到超时
-	this.sendPacket(MSG_REQ_CREATE_CONN, 0, nil)
+	// 将当前时间写进数据包。客户端收到之后要对比当前时间，防止重放攻击
+	data := make([]byte, 8)
+	binary.BigEndian.PutUint64(data, uint64(time.Now().Unix()))
+	this.sendPacket(MSG_REQ_CREATE_CONN, 0, data)
 	timer := time.NewTimer(2 * time.Second)
 	for this.connStat == ARC_STAT_WAIT_CONN {
 		select {
 		case <-timer.C:
-			timer = time.NewTimer(2 * time.Second)
-			this.sendPacket(MSG_REQ_CREATE_CONN, 0, nil)
+			timer = time.NewTimer(4 * time.Second)
+			binary.BigEndian.PutUint64(data, uint64(time.Now().Unix()))
+			this.sendPacket(MSG_REQ_CREATE_CONN, 0, data)
 		case <-this.commonChan:
 			timer.Stop()
 			return
@@ -388,6 +393,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 		this.recvPacketSn = decrypted_packet.SN
 		this.recvSize = this.recvSize + int64(len(encrypted_packet))
 		switch decrypted_packet.MsgType {
+		//客户端收到
 		case MSG_CLOSE_CONN: //关闭连接
 			if this.connStat != ARC_STAT_ESTABLISHED {
 				continue
@@ -511,7 +517,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			this.peerOtherData = ackInfo.OtherData
 			//开始ping和传输数据
 			this.sendPacket(MSG_PING, 0, nil)
-			this.log("Recv ack from server, enter ESTABLISHED stat. remote name" + string(this.peerName))
+			this.log("Recv ack from server, enter ESTABLISHED stat. remote name: " + string(this.peerName))
 			//go this.RecvUserClientDataProc()
 		case MSG_PING:
 			if this.connStat != ARC_STAT_ESTABLISHED && this.connStat != ARC_STAT_READY {
@@ -592,7 +598,7 @@ func (this *AdvancedRelayConn) checkSessionProc() {
 		}
 
 		if this.connStat == ARC_STAT_WAIT_CONN {
-			if currentTime-this.lastRecv > int64(connectionTimeout*4) {
+			if currentTime-this.lastRecv > int64(connectionTimeout*2) {
 				this.log("Connection timeout.Did not receive any packet from Client.")
 				this.Close("timeout. did not receive any packet from Client")
 				return

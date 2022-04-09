@@ -56,6 +56,10 @@ func connectToClientHandler(c *gin.Context) {
 		c.String(404, "Instance not found")
 		return
 	}
+	if len(req.ClientAddr) < 3 {
+		c.String(400, "Invalid client address")
+		return
+	}
 	clientAddr, err := udprelay.ResolveUDPAddr("udp", req.ClientAddr, 10)
 	if err != nil {
 		c.String(400, "Can not resolve address:"+req.ClientAddr+" "+err.Error())
@@ -98,6 +102,70 @@ func getServerConnectionListHandler(c *gin.Context) {
 		return
 	}
 	resp := instance.GetConnectionList()
+	c.JSON(200, resp)
+}
+
+func setServerTrackerHandler(c *gin.Context) {
+	type Request struct {
+		InstanceID int
+		ServerURL  string
+		ServerID   string
+		UserID     string
+	}
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.String(400, err.Error())
+		return
+	}
+	instance, ok := advancedRelayServerMap[req.InstanceID]
+	if !ok {
+		c.String(404, "instance not found")
+		return
+	}
+	config := &udprelay.TrackerConfig{
+		ServerID:  req.ServerID,
+		ServerURL: req.ServerURL,
+		UserID:    req.UserID,
+	}
+	err := instance.SetTrackerConfig(config)
+	if err != nil {
+		c.String(400, err.Error())
+	} else {
+		c.String(200, "success")
+	}
+}
+
+func getServerTrackerHandler(c *gin.Context) {
+	type Request struct {
+		InstanceID int
+	}
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.String(400, err.Error())
+		return
+	}
+	instance, ok := advancedRelayServerMap[req.InstanceID]
+	if !ok {
+		c.String(404, "instance not found")
+		return
+	}
+	type Resp struct {
+		UserID    string
+		ServerID  string
+		ServerURL string
+		Message   string
+		Code      int
+	}
+	var resp Resp
+	config := instance.GetTrackerConfig()
+	if config == nil {
+		c.JSON(200, resp)
+		return
+	}
+	resp.ServerID = config.ServerID
+	resp.ServerURL = config.ServerURL
+	resp.UserID = config.UserID
+	resp.Message, resp.Code = instance.GetTrackerStat()
 	c.JSON(200, resp)
 }
 
@@ -228,6 +296,65 @@ func getClientSessionHandler(c *gin.Context) {
 	c.JSON(200, resp)
 }
 
+func setClientTrackerHandler(c *gin.Context) {
+	type Request struct {
+		InstanceID int
+		ServerURL  string
+		ServerID   string
+		UserID     string
+	}
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.String(400, err.Error())
+		return
+	}
+	instance, ok := advancedRelayClientMap[req.InstanceID]
+	if !ok {
+		c.String(404, "instance not found")
+		return
+	}
+	config := &udprelay.TrackerConfig{
+		ServerID:  req.ServerID,
+		ServerURL: req.ServerURL,
+		UserID:    req.UserID,
+	}
+	instance.SetTrackerConfig(config)
+	c.String(200, "success")
+}
+
+func getClientTrackerHandler(c *gin.Context) {
+	type Request struct {
+		InstanceID int
+	}
+	var req Request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.String(400, err.Error())
+		return
+	}
+	instance, ok := advancedRelayClientMap[req.InstanceID]
+	if !ok {
+		c.String(404, "instance not found")
+		return
+	}
+	type Resp struct {
+		UserID    string
+		ServerID  string
+		ServerURL string
+		Message   string
+		AddrList  []string
+	}
+	var resp Resp
+	config := instance.GetTrackerConfig()
+	if config == nil {
+		c.JSON(200, resp)
+		return
+	}
+	resp.ServerID = config.ServerID
+	resp.ServerURL = config.ServerURL
+	resp.UserID = config.UserID
+	resp.Message, resp.AddrList = instance.GetTrackerStat()
+	c.JSON(200, resp)
+}
 func deleteAdcancedRelayClientHandler(c *gin.Context) {
 	type Request struct {
 		InstanceID int
