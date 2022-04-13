@@ -195,6 +195,7 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 	for {
 		data := make([]byte, this.bufSize)
 		read_count, remoteAddr, err := this.conn.ReadFromUDP(data)
+		remoteAddrString := remoteAddr.String()
 		if err != nil {
 			log.Printf("%s recv udp data fail: %s", this.localName, err.Error())
 			return
@@ -202,10 +203,10 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 		//log.Printf("%s recv udp data from %s", this.localName, remoteAddr.String())
 		if remoteAddr.Port == 3478 { // stun session !
 			var session *StunSession
-			session, ok := this.session[remoteAddr.String()]
+			session, ok := this.session[remoteAddrString]
 			if !ok { // 创建新的stun session
 				session = NewStunSession(remoteAddr, this.conn)
-				this.session[remoteAddr.String()] = session
+				this.session[remoteAddrString] = session
 				log.Printf("Server %s created a new stun session", this.localName)
 			} else {
 				session.Send(data[:read_count])
@@ -221,10 +222,10 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 		} else { // 对端连接
 			var clientConn *AdvancedRelayConn
 			this.clientConnLock.Lock()
-			clientConn = this.GetConnByRemoteAddr(remoteAddr.String())
+			clientConn = this.GetConnByRemoteAddr(remoteAddrString)
 			if clientConn != nil {
 				if clientConn.IsClosed() { // 收到一个已经关闭的连接，释放连接并尝试重新握手
-					delete(this.clientConn, remoteAddr.String())
+					delete(this.clientConn, remoteAddrString)
 					clientConn = nil
 				}
 			}
@@ -232,15 +233,12 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 				// 先尝试解包，如果能解包就新建连接
 				if this.password != nil {
 					var err error
-					if this.encryptHeaderOnly {
-						_, err = DecryptPacketHeader(data[:read_count], this.password, this.encryptMethod)
-					} else {
-						_, err = DecryptPacket(data[:read_count], this.password, this.encryptMethod, this.hashHeaderOnly)
-						//log.Printf("DecryptPacket %x, %d, %v", this.password, this.encryptMethod, this.hashHeaderOnly)
-					}
+					_, err = DecryptPacket(data[:read_count], this.password, this.encryptMethod, this.hashHeaderOnly)
+					//log.Printf("DecryptPacket %x, %d, %v", this.password, this.encryptMethod, this.hashHeaderOnly)
+
 					if err != nil {
 						log.Printf("Server %s received an invaild packet from %s %s", this.localName,
-							remoteAddr.String(), err.Error())
+							remoteAddrString, err.Error())
 						this.clientConnLock.Unlock()
 						continue
 					}

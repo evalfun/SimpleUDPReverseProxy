@@ -13,16 +13,16 @@ import (
 )
 
 type AdvancedRelayClientStat struct {
-	LocalAddr         string
-	ListenerAddr      string
-	PublicAddr        string
-	SessionTimeout    int
-	BufSize           int
-	StunServer        string
-	Password          string
-	CryptMethod       int
-	EncryptHeaderOnly bool
-	HashHeaderOnly    bool
+	LocalAddr      string
+	ListenerAddr   string
+	PublicAddr     string
+	SessionTimeout int
+	BufSize        int
+	StunServer     string
+	Password       string
+	CryptMethod    int
+	//EncryptHeaderOnly bool
+	//HashHeaderOnly    bool
 	Target            string
 	TargetIPVersion   string
 	LocalName         string
@@ -203,15 +203,15 @@ func (this *AdvancedRelayClient) StartConnect() {
 
 func (this *AdvancedRelayClient) GetClientStat() *AdvancedRelayClientStat {
 	stat := &AdvancedRelayClientStat{
-		LocalAddr:         this.conn.LocalAddr().String(),
-		ListenerAddr:      this.clientListener.LocalAddr().String(),
-		PublicAddr:        this.localPublicAddr,
-		SessionTimeout:    this.sessionTimeout,
-		StunServer:        this.stunServer,
-		Password:          string(this.password),
-		CryptMethod:       this.encryptMethod,
-		EncryptHeaderOnly: this.encryptHeaderOnly,
-		HashHeaderOnly:    this.hashHeaderOnly,
+		LocalAddr:      this.conn.LocalAddr().String(),
+		ListenerAddr:   this.clientListener.LocalAddr().String(),
+		PublicAddr:     this.localPublicAddr,
+		SessionTimeout: this.sessionTimeout,
+		StunServer:     this.stunServer,
+		Password:       string(this.password),
+		CryptMethod:    this.encryptMethod,
+		//EncryptHeaderOnly: this.encryptHeaderOnly,
+		//HashHeaderOnly:    this.hashHeaderOnly,
 		Target:            this.target,
 		TargetIPVersion:   this.targetIPVersion,
 		LocalName:         string(this.localName),

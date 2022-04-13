@@ -1,7 +1,7 @@
 package main
 
 import (
-	"main/udprelay"
+	"SimpleUDPReverseProxy/udprelay"
 	"net"
 
 	"github.com/gin-gonic/gin"

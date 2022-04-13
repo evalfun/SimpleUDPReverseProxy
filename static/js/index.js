@@ -34,10 +34,12 @@ var get_client_stat = function (code) {
 
 var get_crypt_method = function (code) {
   switch (code) {
-    case 7:
-      return "NONE";
     case 9:
-      return "AES";
+      return "AES_GCM";
+    case 7:
+      return "NONE_SHA1";
+    case 8:
+      return "NONE_CRC32";
     default:
       return "未知";
   }
@@ -290,13 +292,13 @@ var show_create_server = function () {
 var show_create_client = function (ip, crypt) {
 
   tpl = $.templates('#jsr_in_create_client_target_version');
-  final = tpl.render({TargetIPVersion:ip});
+  final = tpl.render({ TargetIPVersion: ip });
   var a = document.getElementById("in_create_client_target_version");
   a.innerHTML = final;
 
 
   tpl = $.templates('#jsr_in_create_client_crypt_method');
-  final = tpl.render({EncryptMethod:crypt});
+  final = tpl.render({ EncryptMethod: crypt });
   var a = document.getElementById("in_create_client_crypt_method");
   a.innerHTML = final;
 
@@ -319,8 +321,8 @@ var create_server = function () {
   stun_server = $("#in_create_server_stun").val();
   target_version = document.getElementById("in_create_server_target_version").value;
   crypt_method = document.getElementById("in_create_server_crypt_method").value;
-  encrypt_header_only = document.getElementById("in_create_server_eho").checked;
-  hash_header_only = document.getElementById("in_create_server_hho").checked;
+  //encrypt_header_only = document.getElementById("in_create_server_eho").checked;
+  //hash_header_only = document.getElementById("in_create_server_hho").checked;
   local_name = $("#in_create_server_local_name").val();
   other_data = $("#in_create_server_other_data").val();
   tracker_config = {
@@ -338,8 +340,8 @@ var create_server = function () {
     SaveClosedSession: save_closed_session,
     Password: password,
     CryptMethod: crypt_method,
-    EncryptHeaderOnly: encrypt_header_only,
-    HashHeaderOnly: hash_header_only,
+    //EncryptHeaderOnly: encrypt_header_only,
+    //HashHeaderOnly: hash_header_only,
     LocalName: local_name,
     OtherData: other_data,
     StunServer: stun_server,
@@ -373,8 +375,8 @@ var create_client = function () {
   stun_server = $("#in_create_client_stun").val();
   target_version = document.getElementById("in_create_client_target_version").value;
   crypt_method = document.getElementById("in_create_client_crypt_method").value;
-  encrypt_header_only = document.getElementById("in_create_client_eho").checked;
-  hash_header_only = document.getElementById("in_create_client_hho").checked;
+  //encrypt_header_only = document.getElementById("in_create_client_eho").checked;
+  //hash_header_only = document.getElementById("in_create_client_hho").checked;
   local_name = $("#in_create_client_local_name").val();
   other_data = $("#in_create_client_other_data").val();
   server_addr = $("#in_create_client_remote_addr").val().split("\n");
@@ -394,8 +396,8 @@ var create_client = function () {
     SaveClosedSession: save_closed_session,
     Password: password,
     CryptMethod: crypt_method,
-    EncryptHeaderOnly: encrypt_header_only,
-    HashHeaderOnly: hash_header_only,
+    //EncryptHeaderOnly: encrypt_header_only,
+    //HashHeaderOnly: hash_header_only,
     LocalName: local_name,
     OtherData: other_data,
     StunServer: stun_server,
@@ -547,9 +549,9 @@ var get_server_tracker = function () {
         target = serverlist[server_instance_id].Target
       }
       var client_tracker_url;
-      if (resp.ServerURL.startsWith("wss")){
+      if (resp.ServerURL.startsWith("wss")) {
         client_tracker_url = resp.ServerURL.replace("wss", "https")
-      }else{
+      } else {
         client_tracker_url = resp.ServerURL.replace("ws", "http")
       }
       var tracker_config = {
@@ -569,8 +571,8 @@ var get_server_tracker = function () {
         SaveClosedSession: serverlist[server_instance_id].SaveClosedSession,
         Password: serverlist[server_instance_id].Password,
         CryptMethod: encrypt_method,
-        EncryptHeaderOnly: serverlist[server_instance_id].EncryptHeaderOnly,
-        HashHeaderOnly: serverlist[server_instance_id].HashHeaderOnly,
+        //EncryptHeaderOnly: serverlist[server_instance_id].EncryptHeaderOnly,
+       // HashHeaderOnly: serverlist[server_instance_id].HashHeaderOnly,
         StunServer: serverlist[server_instance_id].StunServer,
         Tracker: tracker_config,
       }
@@ -620,8 +622,8 @@ var get_client_tracker = function () {
       $("#in_client_tracker_server_id").val(resp.ServerID);
       $("#in_client_tracker_user_id").val(resp.UserID);
       $("#sp_client_tracker_stat").text(resp.Message);
-      
-      
+
+
       target = clientlist[client_instance_id].Target;
       client_tracker_url = resp.ServerURL
       var tracker_config = {
@@ -642,8 +644,8 @@ var get_client_tracker = function () {
         SaveClosedSession: clientlist[client_instance_id].SaveClosedSession,
         Password: clientlist[client_instance_id].Password,
         CryptMethod: encrypt_method,
-        EncryptHeaderOnly: clientlist[client_instance_id].EncryptHeaderOnly,
-        HashHeaderOnly: clientlist[client_instance_id].HashHeaderOnly,
+        //EncryptHeaderOnly: clientlist[client_instance_id].EncryptHeaderOnly,
+        //HashHeaderOnly: clientlist[client_instance_id].HashHeaderOnly,
         StunServer: clientlist[client_instance_id].StunServer,
         Tracker: tracker_config,
       }
@@ -689,15 +691,15 @@ var create_client_by_link = function () {
     link = Base64.decode(link.substr(7))
   }
   catch (err) {
-    show_info("解析链接错误", "base64: "+err.message);
+    show_info("解析链接错误", "base64: " + err.message);
     return
   }
   var client_config;
-  try{
+  try {
     client_config = JSON.parse(link);
   }
   catch (err) {
-    show_info("解析链接错误", "json: "+err.message);
+    show_info("解析链接错误", "json: " + err.message);
     return
   }
   $("#in_create_client_ins_id").val(client_config.InstanceID);
@@ -707,15 +709,15 @@ var create_client_by_link = function () {
   $("#in_create_client_target").val(client_config.Target);
   //console.log(client_config.Target);
   $("#in_create_client_stun").val(client_config.StunServer);
-  $("#in_create_client_local_name").val("_"+Math.random().toString(10).slice(-8));
+  $("#in_create_client_local_name").val("_" + Math.random().toString(10).slice(-8));
   $("#in_create_client_tracker").val(client_config.Tracker.ServerURL);
   $("#in_create_client_tracker_server_id").val(client_config.Tracker.ServerID);
 
   $("#in_create_client_buf_size").val(client_config.BufSize);
   $("#in_create_client_session_timeout").val(client_config.SessionTimeout);
 
-  document.getElementById("in_create_client_hho").checked = client_config.HashHeaderOnly;
-  document.getElementById("in_create_client_eho").checked = client_config.EncryptHeaderOnly;
+  //document.getElementById("in_create_client_hho").checked = client_config.HashHeaderOnly;
+  //document.getElementById("in_create_client_eho").checked = client_config.EncryptHeaderOnly;
 
   $("#in_create_client_save_close").val(client_config.SaveClosedSession);
   show_create_client(client_config.TargetIPVersion, client_config.CryptMethod);

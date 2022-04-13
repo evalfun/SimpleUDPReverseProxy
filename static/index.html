@@ -63,8 +63,9 @@
                 </div>
                 <div class="input-field col s12 m6 l4">
                     <select id="in_create_server_crypt_method">
-                        <option value="AES">AES</option>
-                        <option value="NONE">NONE(不安全！！！)</option>
+                        <option value="AES_GCM">AES_GCM</option>
+                        <option value="NONE_SHA1">NONE_SHA1</option>
+                        <option value="NONE_CRC32">NONE_CRC32</option>
                     </select>
                     <label>加密算法</label>
                     <span class="helper-text"></span>
@@ -140,7 +141,7 @@
                     <span class="helper-text">在此时间后删除关闭的会话。单位为秒</span>
                 </div>
 
-                <label class="input-field col s12 m6 l4">
+                <!-- <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_server_eho" />
                     <span>仅加密头部</span>
                     <span class="helper-text">密码会裸奔 不建议使用</span>
@@ -149,7 +150,7 @@
                     <input type="checkbox" class="filled-in" id="in_create_server_hho" />
                     <span>仅校验头部</span>
                     <span class="helper-text">可能会减少cpu使用</span>
-                </label>
+                </label> -->
             </div>
         </div>
         <div class="modal-footer">
@@ -203,8 +204,9 @@
                 </div>
                 <div class="input-field col s12 m6 l4">
                     <select id="in_create_client_crypt_method">
-                        <option value="AES">AES</option>
-                        <option value="NONE">NONE(不安全！！！)</option>
+                        <option value="AES_GCM">AES_GCM</option>
+                        <option value="NONE_SHA1">NONE_SHA1</option>
+                        <option value="NONE_CRC32">NONE_CRC32</option>
                     </select>
                     <label>加密算法</label>
                     <span class="helper-text"></span>
@@ -262,7 +264,7 @@
                     <label for="in_create_client_save_close">会话保留</label>
                     <span class="helper-text">在此时间后删除关闭的会话。单位为秒</span>
                 </div>
-                <label class="input-field col s12 m6 l4">
+                <!-- <label class="input-field col s12 m6 l4">
                     <input type="checkbox" class="filled-in" id="in_create_client_eho" />
                     <span>仅加密头部</span>
                     <span class="helper-text">密码会裸奔 不建议使用</span>
@@ -271,7 +273,7 @@
                     <input type="checkbox" class="filled-in" id="in_create_client_hho" />
                     <span>仅校验头部</span>
                     <span class="helper-text">可能会减少cpu使用</span>
-                </label>
+                </label> -->
             </div>
         </div>
         <div class="modal-footer">
@@ -493,7 +495,7 @@
                 </div>
                 <div class="fixed-action-btn">
                     <a class="btn-floating btn-large red">
-                        <i class="large material-icons" onclick="show_create_client('udp','AES')">add</i>
+                        <i class="large material-icons" onclick="show_create_client('udp','AES_GCM')">add</i>
                     </a>
                     <a class="btn-floating btn-large waves-effect waves-light hide-on-large-only">
                         <i class="material-icons" onclick="save_config()">save</i>
@@ -726,14 +728,19 @@
         <div class="input-field col s12 m6 l4">
             <select id="sel_server_encrypt_method">
                 {{if EncryptMethod == 9}}
-                <option value="AES" selected>AES</option>
+                <option value="AES_GCM" selected>AES_GCM</option>
                 {{else}}
-                <option value="AES">AES</option>
+                <option value="AES_GCM">AES_GCM</option>
                 {{/if}}
                 {{if EncryptMethod == 7}}
-                <option value="NONE" selected>NONE(不安全！！！)</option>
+                <option value="NONE_SHA1" selected>NONE_SHA1</option>
                 {{else}}
-                <option value="NONE">NONE(不安全！！！)</option>
+                <option value="NONE_SHA1">NONE_SHA1</option>
+                {{/if}}
+                {{if EncryptMethod == 8}}
+                <option value="NONE_CRC32" selected>NONE_CRC32</option>
+                {{else}}
+                <option value="NONE_CRC32">NONE_CRC32</option>
                 {{/if}}
             </select>
             <label>加密算法</label>
@@ -756,7 +763,7 @@
             <input placeholder="30" id="input_server_saveclose" type="text" class="validate" value="{{>SaveClosedSession}}">
             <label for="input_server_saveclose">保留超时的会话秒</label>
         </div>
-        <div class="col s12 m6 l4">
+        <!-- <div class="col s12 m6 l4">
             <label>
                 {{if EncryptHeaderOnly == true}}
                 <input id="input_server_eho" type="checkbox"  checked="checked" class="filled-in" />
@@ -775,7 +782,7 @@
                 {{/if}}
                 <span>仅校验头部</span>
             </label>
-        </div>
+        </div> -->
     </script>
     <!-- 客户端信息 -->
     <script type="text/x-jsrender" id="jsr-clientinfo">
@@ -848,15 +855,20 @@
         </div>
         <div class="input-field col s12 m6 l4">
             <select id="sel_client_encrypt_method">
-                {{if EncryptMethod == 9}}
-                <option value="AES" selected>AES</option>
+                {{if CryptMethod == 9}}
+                <option value="AES_GCM" selected>AES_GCM</option>
                 {{else}}
-                <option value="AES">AES</option>
+                <option value="AES_GCM">AES_GCM</option>
                 {{/if}}
-                {{if EncryptMethod == 7}}
-                <option value="NONE" selected>NONE(不安全！！！)</option>
+                {{if CryptMethod == 7}}
+                <option value="NONE_SHA1" selected>NONE_SHA1</option>
                 {{else}}
-                <option value="NONE">NONE(不安全！！！)</option>
+                <option value="NONE_SHA1">NONE_SHA1</option>
+                {{/if}}
+                {{if CryptMethod == 8}}
+                <option value="NONE_CRC32" selected>NONE_CRC32</option>
+                {{else}}
+                <option value="NONE_CRC32">NONE_CRC32</option>
                 {{/if}}
             </select>
             <label>加密算法</label>
@@ -895,7 +907,7 @@
             <input placeholder="30" id="input_client_saveclose" type="text" class="validate" value="{{>SaveClosedSession}}">
             <label for="input_client_saveclose">保留超时的会话秒</label>
         </div>
-        <div class="col s12 m6 l4">
+        <!-- <div class="col s12 m6 l4">
             <label>
                 {{if EncryptHeaderOnly == true}}
                 <input id="input_client_eho" type="checkbox"  checked="checked" class="filled-in" />
@@ -914,7 +926,7 @@
                 {{/if}}
                 <span>仅校验头部</span>
             </label>
-        </div>
+        </div> -->
     </script>
     <script type="text/x-jsrender" id="jsr_in_create_client_target_version">
         {{if TargetIPVersion == "udp"}}
@@ -934,15 +946,20 @@
         {{/if}}
     </script>
     <script type="text/x-jsrender" id="jsr_in_create_client_crypt_method">
-        {{if EncryptMethod == "AES"}}
-        <option value="AES" selected>AES</option>
+        {{if EncryptMethod == "AES_GCM"}}
+        <option value="AES_GCM" selected>AES_GCM</option>
         {{else}}
-        <option value="AES">AES</option>
+        <option value="AES_GCM">AES_GCM</option>
         {{/if}}
-        {{if EncryptMethod == "NONE"}}
-        <option value="NONE" selected>NONE(不安全！！！)</option>
+        {{if EncryptMethod == "NONE_SHA1"}}
+        <option value="NONE_SHA1" selected>NONE_SHA1</option>
         {{else}}
-        <option value="NONE">NONE(不安全！！！)</option>
+        <option value="NONE_SHA1">NONE_SHA1</option>
+        {{/if}}
+        {{if EncryptMethod == "NONE_CRC32"}}
+        <option value="NONE_CRC32" selected>NONE_CRC32</option>
+        {{else}}
+        <option value="NONE_CRC32">NONE_CRC32</option>
         {{/if}}
     </script>
 </body>

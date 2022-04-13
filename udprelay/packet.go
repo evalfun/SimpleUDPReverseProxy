@@ -1,13 +1,12 @@
 package udprelay
 
 import (
-	"crypto/rand"
+	"SimpleUDPReverseProxy/crypts"
 	"encoding/binary"
 	"errors"
-	"main/crypts"
 )
 
-var passwd_salt []byte = []byte("11223344__passwd_salt__x")
+var passwd_salt []byte = []byte("112233__passwd_salt__xl")
 
 type Packet struct {
 	MsgType   uint8
@@ -16,64 +15,38 @@ type Packet struct {
 	SN        uint32
 }
 
-//完整报文
-// |randomIV|  加密数据	 |
-// | 16bit  |  data		|
-// | 2byte  |  data		|
-
-//解密后数据
-// |MSG_TYPE | COMPRESS_TYPE| saved |Session id |serial number| 压缩过的或者没有压缩的数据| CRC32 sum
-// | 8bit    | 4bit         | 4bit  | 16 bit    |    32bit    |  data                   | 32bit
-// | 1byte   |       1 byte         | 2byte     |    4byte    |  data                   | 4byte
 //解密数据包，以后还要做解压缩
 //return 解密后的数据包  数据包类型 Session 错误信息
 func DecryptPacket(encrypted_packet []byte, password []byte, method int, hashHeaderOnly bool) (*Packet, error) {
-	encrypted_packet_length := len(encrypted_packet)
-	if encrypted_packet_length < 10 {
-		return nil, errors.New("Packet length too short")
-	}
 	var decrypted_packet []byte
-	// if password == nil { //不要解密
-	// 	decrypted_packet = encrypted_packet[2:encrypted_packet_length]
-	// } else {
-	cryptInstance, err := crypts.NewCryption(method, append(password, encrypted_packet[0:2]...), passwd_salt)
+	cryptInstance, err := crypts.NewCryption(method, password, passwd_salt)
 	if err != nil {
 		return nil, errors.New("Create crypt instance error: " + err.Error())
 	}
-	decrypted_packet, err = cryptInstance.Decrypt(encrypted_packet[2:])
+	decrypted_packet, err = cryptInstance.Decrypt(encrypted_packet)
 	if err != nil {
 		return nil, errors.New("Unable to decrypt packet:" + err.Error())
 	}
-	//}
 	decrypted_packet_length := len(decrypted_packet)
-	if decrypted_packet_length < 12 {
+	if decrypted_packet_length < 8 {
 		return nil, errors.New("Decrypted packet too short")
-	}
-	//校验数据包
-	crc32 := binary.BigEndian.Uint32(decrypted_packet[decrypted_packet_length-4 : decrypted_packet_length])
-	var currentCRC32sum uint32
-	if hashHeaderOnly {
-		currentCRC32sum = crc32sum(decrypted_packet[:8])
-	} else {
-		currentCRC32sum = crc32sum(decrypted_packet[:decrypted_packet_length-4])
-	}
-	if crc32 != currentCRC32sum {
-		return nil, errors.New("wrong CRC32 sum")
 	}
 	packet := new(Packet)
 	packet.MsgType = uint8(decrypted_packet[0])
 	packet.SessionID = binary.BigEndian.Uint16(decrypted_packet[2:4])
 	packet.SN = uint32(binary.BigEndian.Uint32(decrypted_packet[4:8]))
-	packet.Data = decrypted_packet[8 : decrypted_packet_length-4]
+	packet.Data = decrypted_packet[8:decrypted_packet_length]
 	return packet, nil
 }
 
+//解密后数据
+// |MSG_TYPE | COMPRESS_TYPE| saved |Session id |serial number| 压缩过的或者没有压缩的数据
+// | 8bit    | 4bit         | 4bit  | 16 bit    |    32bit    |  data
+// | 1byte   |       1 byte         | 2byte     |    4byte    |  data
 //加密数据包，以后还要做压缩
 // arg 未加密数据包 密码 数据包类型 session 压缩类型
 //return 数据包
 func (this *Packet) EncryptPacket(password []byte, method int, compress_type uint8, hashHeaderOnly bool) ([]byte, error) {
-	var iv []byte
-	iv = make([]byte, 2)
 	var encrypted_packet []byte
 
 	packet_header := make([]byte, 8)
@@ -82,20 +55,8 @@ func (this *Packet) EncryptPacket(password []byte, method int, compress_type uin
 	binary.BigEndian.PutUint16(packet_header[2:4], this.SessionID) //session
 	binary.BigEndian.PutUint32(packet_header[4:8], this.SN)        //序列号
 	decrypted_packet := append(packet_header, this.Data...)        //数据
-	var _packetCRC32sum uint32
-	if hashHeaderOnly {
-		_packetCRC32sum = crc32sum(decrypted_packet[:8])
-	} else {
-		_packetCRC32sum = crc32sum(decrypted_packet)
-	}
 
-	packetCRC32sum := make([]byte, 4)
-	binary.BigEndian.PutUint32(packetCRC32sum, _packetCRC32sum)
-
-	decrypted_packet = append(decrypted_packet, packetCRC32sum...)
-	//if password != nil {
-	rand.Read(iv)
-	cryptInstance, err := crypts.NewCryption(method, append(password, iv...), passwd_salt)
+	cryptInstance, err := crypts.NewCryption(method, password, passwd_salt)
 	if err != nil {
 		return nil, errors.New("Create encrypt instance error: " + err.Error())
 	}
@@ -103,75 +64,7 @@ func (this *Packet) EncryptPacket(password []byte, method int, compress_type uin
 	if err != nil {
 		return nil, err
 	}
-	return append(iv, encrypted_packet...), nil
-	//}
-	return append(iv, decrypted_packet...), nil
-}
-
-//只有报文头部加密的报文
-// | iv		| 加密头 	| 数据
-// | 16bit	| 			| data
-// | 2byte	| 16byte	| data
-//解密头结构
-// |MSG_TYPE | COMPRESS_TYPE| saved |Session id |serial number| Header CRC32 sum	|
-// | 8bit    | 4bit         | 4bit  | 16 bit    |  32bit      | 32bit				|
-// | 1byte   |       1 byte         | 2byte     |4byte        | 4byte				|
-
-//只加密数据包头部
-func (this *Packet) EncryptPacketHeader(password []byte, method int, compress_type uint8) ([]byte, error) {
-	packetHeader := make([]byte, 12)
-	packetHeader[0] = this.MsgType
-	packetHeader[1] = compress_type << 4
-	binary.BigEndian.PutUint16(packetHeader[2:4], this.SessionID)
-	binary.BigEndian.PutUint32(packetHeader[4:8], this.SN)
-	crc32 := crc32sum(packetHeader[0:8])
-	binary.BigEndian.PutUint32(packetHeader[8:12], crc32)
-	var iv []byte
-	iv = make([]byte, 2)
-	_, err := rand.Read(iv)
-	if err != nil {
-		return nil, err
-	}
-	cryptInstance, err := crypts.NewCryption(method, append(password, iv...), passwd_salt)
-	if err != nil {
-		return nil, errors.New("Create crypt instance error: " + err.Error())
-	}
-	encryptedHeader, err := cryptInstance.Encrypt(packetHeader)
-	if err != nil {
-		return nil, errors.New("Encrypt packet header error: " + err.Error())
-	}
-	encryptedHeader = append(iv, encryptedHeader...)
-	//log.Println("encryptedHeader length: ", len(encryptedHeader))
-
-	return append(encryptedHeader, this.Data...), nil
-}
-
-//只解密数据包头部，以后还要做解压缩
-//return packet 错误信息
-func DecryptPacketHeader(packet []byte, password []byte, method int) (*Packet, error) {
-	if len(packet) < 18 {
-		return nil, errors.New("Encrypted packet length too short")
-	}
-
-	cryptInstance, err := crypts.NewCryption(method, append(password, packet[0:2]...), passwd_salt)
-	if err != nil {
-		return nil, errors.New("Create crypt instance error: " + err.Error())
-	}
-	decryptedPacketHeader, err := cryptInstance.Decrypt(packet[2:18])
-	if err != nil {
-		return nil, errors.New("Decrypt packet header error: " + err.Error())
-	}
-	crc32 := crc32sum(decryptedPacketHeader[0:8])
-	if crc32 != binary.BigEndian.Uint32(decryptedPacketHeader[8:12]) {
-		return nil, errors.New("wrong packet header crc32 sum")
-	}
-	_packet := &Packet{
-		MsgType:   decryptedPacketHeader[0],
-		SessionID: binary.BigEndian.Uint16(decryptedPacketHeader[2:4]),
-		SN:        binary.BigEndian.Uint32(decryptedPacketHeader[4:8]),
-		Data:      packet[18:],
-	}
-	return _packet, nil
+	return encrypted_packet, nil
 }
 
 type CreateConnInfo struct {

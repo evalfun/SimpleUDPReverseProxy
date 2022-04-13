@@ -1,9 +1,9 @@
 package udprelay
 
 import (
+	"SimpleUDPReverseProxy/stun"
 	"fmt"
 	"log"
-	"main/stun"
 	"net"
 	"time"
 )

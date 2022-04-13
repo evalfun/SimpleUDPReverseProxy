@@ -1,9 +1,9 @@
 package main
 
 import (
+	"SimpleUDPReverseProxy/crypts"
+	"SimpleUDPReverseProxy/udprelay"
 	"errors"
-	"main/crypts"
-	"main/udprelay"
 	"net"
 )
 
@@ -30,7 +30,7 @@ func createAdvancedRelayClient(config *AdvancedUDPRelayClientConfig) error {
 	if config.BufSize < 128 {
 		return errors.New("recv BufSize can not smaller than 128")
 	}
-	instance, err = udprelay.NewAdvancedRelayClient(int(config.ListenerPort), int(config.LocalPort), config.BufSize, config.Target, config.TargetIPVersion, config.SessionTimeout, config.SaveClosedSession, []byte(config.Password), cryptMethod, config.EncryptHeaderOnly, config.HashHeaderOnly, []byte(config.LocalName), []byte(config.OtherData), config.CompressType)
+	instance, err = udprelay.NewAdvancedRelayClient(int(config.ListenerPort), int(config.LocalPort), config.BufSize, config.Target, config.TargetIPVersion, config.SessionTimeout, config.SaveClosedSession, []byte(config.Password), cryptMethod, false, false, []byte(config.LocalName), []byte(config.OtherData), config.CompressType)
 	if err != nil {
 		return errors.New("Create instance faild:" + err.Error())
 	}
@@ -72,7 +72,7 @@ func createAdvancedRelayServer(config *AdvancedUDPRelayServerConfig) error {
 	if cryptMethod == 0 {
 		return errors.New("unkonwn crypt method " + config.CryptMethod)
 	}
-	instance, err := udprelay.NewAdvancedRelayServer(int(config.LocalPort), config.BufSize, config.SessionTimeout, config.SaveClosedSession, []byte(config.Password), cryptMethod, config.EncryptHeaderOnly, config.HashHeaderOnly, []byte(config.LocalName), []byte(config.OtherData))
+	instance, err := udprelay.NewAdvancedRelayServer(int(config.LocalPort), config.BufSize, config.SessionTimeout, config.SaveClosedSession, []byte(config.Password), cryptMethod, false, false, []byte(config.LocalName), []byte(config.OtherData))
 	if err != nil {
 		return errors.New("Create instance error:" + err.Error())
 	}

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"SimpleUDPReverseProxy/crypts"
+	"SimpleUDPReverseProxy/udprelay"
 	"encoding/json"
 	"io/ioutil"
 	"log"
-	"main/crypts"
-	"main/udprelay"
 	"strconv"
 	"strings"
 )
@@ -20,12 +20,12 @@ type AdvancedUDPRelayServerConfig struct {
 	SaveClosedSession int
 	Password          string
 	CryptMethod       string
-	EncryptHeaderOnly bool
-	HashHeaderOnly    bool
-	LocalName         string
-	OtherData         string
-	StunServer        string
-	Tracker           *udprelay.TrackerConfig
+	//EncryptHeaderOnly bool
+	//HashHeaderOnly    bool
+	LocalName  string
+	OtherData  string
+	StunServer string
+	Tracker    *udprelay.TrackerConfig
 }
 
 type AdvancedUDPRelayClientConfig struct {
@@ -39,14 +39,14 @@ type AdvancedUDPRelayClientConfig struct {
 	SaveClosedSession int
 	Password          string
 	CryptMethod       string
-	EncryptHeaderOnly bool
-	HashHeaderOnly    bool
-	LocalName         string
-	OtherData         string
-	CompressType      uint8
-	StunServer        string
-	ServerAddr        []string
-	Tracker           *udprelay.TrackerConfig
+	//EncryptHeaderOnly bool
+	//HashHeaderOnly    bool
+	LocalName    string
+	OtherData    string
+	CompressType uint8
+	StunServer   string
+	ServerAddr   []string
+	Tracker      *udprelay.TrackerConfig
 }
 
 type UDPRelayConfig struct {
@@ -114,12 +114,12 @@ func saveConfig() error {
 		config.SaveClosedSession = stat.SaveClosedSession
 		config.Password = stat.Password
 		config.CryptMethod = crypts.GetCryptMethodStr(stat.CryptMethod)
-		config.EncryptHeaderOnly = stat.EncryptHeaderOnly
+		//config.EncryptHeaderOnly = stat.EncryptHeaderOnly
 		config.LocalName = stat.LocalName
 		config.OtherData = stat.OtherData
 		config.StunServer = stat.StunServer
 		config.ServerAddr = stat.ServerAddrList
-		config.HashHeaderOnly = stat.HashHeaderOnly
+		//config.HashHeaderOnly = stat.HashHeaderOnly
 		config.Tracker = advancedRelayClientMap[i].GetTrackerConfig()
 		rconfig.Client = append(rconfig.Client, &config)
 	}
@@ -141,11 +141,11 @@ func saveConfig() error {
 		config.SaveClosedSession = stat.SaveClosedSession
 		config.Password = stat.Password
 		config.CryptMethod = crypts.GetCryptMethodStr(stat.EncryptMethod)
-		config.EncryptHeaderOnly = stat.EncryptHeaderOnly
+		//config.EncryptHeaderOnly = stat.EncryptHeaderOnly
 		config.LocalName = stat.LocalName
 		config.OtherData = stat.OtherData
 		config.StunServer = stat.StunServer
-		config.HashHeaderOnly = stat.HashHeaderOnly
+		//config.HashHeaderOnly = stat.HashHeaderOnly
 		config.Tracker = advancedRelayServerMap[i].GetTrackerConfig()
 		rconfig.Server = append(rconfig.Server, &config)
 	}

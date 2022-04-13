@@ -43,8 +43,8 @@ type AdvancedRelayConn struct {
 	peerOtherData      []byte       // 对端附加信息
 	localName          []byte       // 本端名称 需要初始化
 	otherData          []byte       // 发送给对端的消息 需要初始化
-	encryptHeaderOnly  bool         // 只加密报文头部   需要初始化
-	hashHeaderOnly     bool
+	encryptHeaderOnly  bool         // 只加密报文头部   暂时弃用
+	hashHeaderOnly     bool         // 只校验报文头部   暂时弃用
 	encryptMethod      int
 	act                uint8  // 我是服务端还是客户端？ 客户端要初始化
 	targetAddr         string // 客户端要初始化 服务端靠自动协商
@@ -279,11 +279,9 @@ func (this *AdvancedRelayConn) sendPacket(msgType uint8, sessionID uint16, data 
 	} else {
 		passwd = this.password
 	}
-	if this.encryptHeaderOnly {
-		encryptedPacket, err = packet.EncryptPacketHeader(passwd, this.encryptMethod, this.compressType)
-	} else {
-		encryptedPacket, err = packet.EncryptPacket(passwd, this.encryptMethod, this.compressType, this.hashHeaderOnly)
-	}
+
+	encryptedPacket, err = packet.EncryptPacket(passwd, this.encryptMethod, this.compressType, this.hashHeaderOnly)
+
 	if err != nil {
 		this.log(fmt.Sprintf("encrypt packet error:%s", err.Error()))
 		return
@@ -358,29 +356,21 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			return
 		}
 		//先开始解密,使用新的密码
-		if this.password != nil {
-			if this.encryptHeaderOnly {
-				decrypted_packet, err = DecryptPacketHeader(encrypted_packet, this.newPasswd, this.encryptMethod)
-			} else {
-				decrypted_packet, err = DecryptPacket(encrypted_packet, this.newPasswd, this.encryptMethod, this.hashHeaderOnly)
+
+		decrypted_packet, err = DecryptPacket(encrypted_packet, this.newPasswd, this.encryptMethod, this.hashHeaderOnly)
+
+		if err != nil {
+			// 新密码无法解密时使用旧密码
+
+			decrypted_packet, err = DecryptPacket(encrypted_packet, this.password, this.encryptMethod, this.hashHeaderOnly)
+
+			if err != nil { // 旧密码也无法解密，那就gun吧
+				this.log(fmt.Sprintf("Decrypt packet error:%s", err.Error()))
+				continue
 			}
-			if err != nil {
-				// 新密码无法解密时使用旧密码
-				if this.encryptHeaderOnly {
-					decrypted_packet, err = DecryptPacketHeader(encrypted_packet, this.password, this.encryptMethod)
-				} else {
-					decrypted_packet, err = DecryptPacket(encrypted_packet, this.password, this.encryptMethod, this.hashHeaderOnly)
-				}
-				if err != nil { // 旧密码也无法解密，那就gun吧
-					this.log(fmt.Sprintf("Decrypt packet error:%s", err.Error()))
-					continue
-				}
-			} else { //新密码解密成功，使旧密码失效 都给我去用新密码
-				this.password = make([]byte, 16)
-				rand.Read(this.password)
-			}
-		} else {
-			decrypted_packet, err = DecryptPacketHeader(encrypted_packet, this.password, this.encryptMethod)
+		} else { //新密码解密成功，使旧密码失效 都给我去用新密码
+			this.password = make([]byte, 16)
+			rand.Read(this.password)
 		}
 
 		//对一下序列号，防止重放攻击
@@ -557,7 +547,7 @@ func (this *AdvancedRelayConn) RecvUserClientDataProc() {
 		// 创建或者获取session
 		var session *IncomeUDPSession
 		var sessionID uint16
-		this.sessionLock.RLock()
+		this.sessionLock.Lock()
 		sessionID, ok := this.clientAddrMap[userClientAddrString]
 		_session, ok1 := this.session[sessionID]
 		if !ok || !ok1 {
@@ -583,7 +573,7 @@ func (this *AdvancedRelayConn) RecvUserClientDataProc() {
 		session.RecvBytes = session.RecvBytes + int64(read_count)
 		// 发送数据给对端
 		this.sendPacket(MSG_DATA, sessionID, data[:read_count])
-		this.sessionLock.RUnlock()
+		this.sessionLock.Unlock()
 	}
 }
 

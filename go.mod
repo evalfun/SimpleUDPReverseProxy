@@ -1,4 +1,4 @@
-module main
+module SimpleUDPReverseProxy
 
 go 1.16
 
