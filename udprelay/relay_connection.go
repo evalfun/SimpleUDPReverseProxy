@@ -231,7 +231,7 @@ func (this *AdvancedRelayConn) tryConnectProc() {
 	}
 	rand.Read(createConnInfo.NewPasswd)
 	this.newPasswd = createConnInfo.NewPasswd
-	createConnPacket, err := createConnInfo.PackCreateConnInfo()
+	createConnPacket, err := createConnInfo.PackCreateConnInfo(this.password)
 	if err != nil {
 		this.log(fmt.Sprintf("pack create connection info error:%s", err.Error()))
 		return
@@ -245,7 +245,7 @@ func (this *AdvancedRelayConn) tryConnectProc() {
 			rand.Read(createConnInfo.NewPasswd)
 			this.newPasswd = createConnInfo.NewPasswd
 			createConnInfo.TimeStamp = uint64(time.Now().Unix())
-			createConnPacket, err = createConnInfo.PackCreateConnInfo()
+			createConnPacket, err = createConnInfo.PackCreateConnInfo(this.password)
 			this.log(fmt.Sprintf("Try connect to %s,push new password %x\n", this.remoteAddrString, this.newPasswd))
 			if err != nil {
 				this.log(fmt.Sprintf("Pack create connection info error:%s", err.Error()))
@@ -307,7 +307,7 @@ func (this *AdvancedRelayConn) sendAck() {
 		PeerName:  this.localName,
 		OtherData: this.otherData,
 	}
-	ackPacket, err := ackInfo.PackAckInfo()
+	ackPacket, err := ackInfo.PackAckInfo(this.newPasswd)
 	if err != nil {
 		this.log(fmt.Sprintf("Pack ack info error:%s", err.Error()))
 		return
@@ -356,7 +356,6 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			return
 		}
 		//先开始解密,使用新的密码
-
 		decrypted_packet, err = DecryptPacket(encrypted_packet, this.newPasswd, this.encryptMethod, this.hashHeaderOnly)
 
 		if err != nil {
@@ -461,7 +460,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			if this.connStat == ARC_STAT_ESTABLISHED {
 				continue
 			}
-			createConnInfo, err := UnpackCreateConnInfo(decrypted_packet.Data)
+			createConnInfo, err := UnpackCreateConnInfo(decrypted_packet.Data, this.password)
 			if err != nil {
 				this.log(fmt.Sprintf("Unpack create connection info error:%s\n", err.Error()))
 				continue
@@ -496,7 +495,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			if this.connStat != ARC_STAT_WAIT_ACK {
 				continue
 			}
-			ackInfo, err := UnpackAckInfo(decrypted_packet.Data)
+			ackInfo, err := UnpackAckInfo(decrypted_packet.Data, this.newPasswd)
 			if err != nil {
 				this.log(fmt.Sprintf("Recv invaild ack packet from remote: %s", err.Error()))
 			}

@@ -355,7 +355,6 @@ func (this *AdvancedRelayServer) check_session_proc() {
 
 func (this *AdvancedRelayServer) Close() {
 	this.closed = true
-	this.conn.Close()
 	if this.tracker != nil {
 		this.tracker.Close()
 	}
@@ -367,5 +366,7 @@ func (this *AdvancedRelayServer) Close() {
 	for k := range this.clientConn {
 		this.clientConn[k].Close("server stop")
 	}
+	time.Sleep(1 * time.Second)
+	this.conn.Close()
 	close(this.messageChan)
 }

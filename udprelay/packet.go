@@ -79,7 +79,7 @@ type CreateConnInfo struct {
 
 //获取连接创建报文
 // arg 压缩类型 网络类型 地址
-func (this *CreateConnInfo) PackCreateConnInfo() ([]byte, error) {
+func (this *CreateConnInfo) PackCreateConnInfo(passwd []byte) ([]byte, error) {
 	packet := make([]byte, 14)
 	packet[0] = this.ReqCompressType
 	var networkType uint8
@@ -120,7 +120,12 @@ func (this *CreateConnInfo) PackCreateConnInfo() ([]byte, error) {
 	packet = append(packet, this.PeerName...)
 	packet = append(packet, this.OtherData...)
 	packet = append(packet, this.NewPasswd...)
-	return packet, nil
+	cryptInstance, err := crypts.NewCryption(crypts.CRYPT_METHOD_AES_GCM, passwd, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
+	encryptedPacket, err := cryptInstance.Encrypt(packet)
+	return encryptedPacket, err
 }
 
 //连接创建包报文  此报文在解密后报文的数据字段中
@@ -129,7 +134,15 @@ func (this *CreateConnInfo) PackCreateConnInfo() ([]byte, error) {
 // |1byte       |  1byte        |  8byte  | 1byte | 1byte    | 2byte  |  xxxx	|   xxx   | xxx       | 16byte
 //解析创建连接报文
 //return 请求压缩类型  网络类型  目标地址 错误信息
-func UnpackCreateConnInfo(packet []byte) (*CreateConnInfo, error) {
+func UnpackCreateConnInfo(encryptedPacket []byte, passwd []byte) (*CreateConnInfo, error) {
+	cryptInstance, err := crypts.NewCryption(crypts.CRYPT_METHOD_AES_GCM, passwd, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
+	packet, err := cryptInstance.Decrypt(encryptedPacket)
+	if err != nil {
+		return nil, err
+	}
 	packet_length := len(packet)
 	if packet_length < 16 {
 		return nil, errors.New("Create Conn packet too short")
@@ -180,7 +193,12 @@ type AckInfo struct {
 	OtherData []byte
 }
 
-func UnpackAckInfo(data []byte) (*AckInfo, error) {
+func UnpackAckInfo(encryptedPacket []byte, passwd []byte) (*AckInfo, error) {
+	cryptInstance, err := crypts.NewCryption(crypts.CRYPT_METHOD_AES_GCM, passwd, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
+	data, err := cryptInstance.Decrypt(encryptedPacket)
 	if len(data) < 6 {
 		return nil, errors.New("ack into packet too short")
 	}
@@ -196,7 +214,7 @@ func UnpackAckInfo(data []byte) (*AckInfo, error) {
 	return ackInfo, nil
 }
 
-func (this *AckInfo) PackAckInfo() ([]byte, error) {
+func (this *AckInfo) PackAckInfo(passwd []byte) ([]byte, error) {
 	if len(this.PeerName) > 255 {
 		return nil, errors.New("server name longer than 255")
 	}
@@ -209,5 +227,10 @@ func (this *AckInfo) PackAckInfo() ([]byte, error) {
 	binary.BigEndian.PutUint16(data[4:6], uint16(len(this.OtherData)))
 	data = append(data, this.PeerName...)
 	data = append(data, this.OtherData...)
-	return data, nil
+	cryptInstance, err := crypts.NewCryption(crypts.CRYPT_METHOD_AES_GCM, passwd, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
+	encryptedPacket, err := cryptInstance.Encrypt(data)
+	return encryptedPacket, nil
 }
