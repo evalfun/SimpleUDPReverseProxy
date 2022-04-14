@@ -1,0 +1,26 @@
+name: Go
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.18
+
+    - name: Build
+      run: |
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o SimpleUDPReverseProxy-linux-amd64
+        CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o SimpleUDPReverseProxy-linux-arm64
+        CGO_ENABLED=0 GOOS=linux GOARCH=mipsle go build -o SimpleUDPReverseProxy-linux-mipsle
+        CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o SimpleUDPReverseProxy-windows-amd64.exe
