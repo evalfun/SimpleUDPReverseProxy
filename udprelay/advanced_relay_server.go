@@ -1,6 +1,7 @@
 package udprelay
 
 import (
+	"SimpleUDPReverseProxy/crypts"
 	"crypto/rand"
 	"errors"
 	"log"
@@ -52,6 +53,7 @@ type AdvancedRelayServer struct {
 	tracker           *ServerTracker
 	messageChan       chan *TrackerMessage
 	randomOffset      int64 //一个普通的随机值
+	cryptInstance     crypts.Cryption
 }
 
 //流程：初始化服务端，设置stun服务器，上报ip地址，等待连接
@@ -77,6 +79,10 @@ func NewAdvancedRelayServer(localPort int, bufSize int, sessionTimeout int, save
 		clientConn:        make(map[string]*AdvancedRelayConn),
 	}
 	var err error
+	relay.cryptInstance, err = crypts.NewCryption(encryptMethod, password, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
 	relay.conn, err = net.ListenUDP("udp", &net.UDPAddr{
 		IP:   nil,
 		Port: localPort,
@@ -233,7 +239,7 @@ func (this *AdvancedRelayServer) recv_udp_proc() {
 				// 先尝试解包，如果能解包就新建连接
 				if this.password != nil {
 					var err error
-					_, err = DecryptPacket(data[:read_count], this.password, this.encryptMethod, this.hashHeaderOnly)
+					_, err = DecryptPacket(data[:read_count], this.cryptInstance, this.hashHeaderOnly)
 					//log.Printf("DecryptPacket %x, %d, %v", this.password, this.encryptMethod, this.hashHeaderOnly)
 
 					if err != nil {
@@ -319,7 +325,7 @@ func (this *AdvancedRelayServer) SetStunServer(stun_server string) error {
 
 //检查资源线程
 func (this *AdvancedRelayServer) check_session_proc() {
-	var stunSession CommonSession
+	//var stunSession CommonSession
 	var currentTime int64
 	for this.closed == false {
 		currentTime = time.Now().Unix()
@@ -327,7 +333,7 @@ func (this *AdvancedRelayServer) check_session_proc() {
 		for k := range this.session {
 			_, _, _, ClosedTime, LastRecv, LastSend := this.session[k].GetSessionInfo()
 			if currentTime-LastRecv > int64(this.sessionTimeout) && currentTime-LastSend > int64(this.sessionTimeout) {
-				stunSession.Close("session timeout")
+				this.session[k].Close("session timeout")
 				log.Printf("Client %s stun session timeout", this.localName)
 			}
 			if currentTime-ClosedTime > int64(this.saveClosedSession) && ClosedTime != 0 {

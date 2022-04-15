@@ -12,16 +12,21 @@ import (
 //不加密。只是校验一下
 
 type NONESHA1Cryption struct {
-	sha1p hash.Hash
+	sha1p    hash.Hash
+	password []byte
 }
 
 func (this *NONESHA1Cryption) SetPassword(password []byte, salt []byte) error {
 	this.sha1p = sha1.New()
-	this.sha1p.Write(password)
+	this.password = make([]byte, len(password))
+	copy(this.password, password)
+	this.password = append(this.password, salt...)
 	return nil
 }
 
 func (this *NONESHA1Cryption) Encrypt(data []byte) ([]byte, error) {
+	this.sha1p.Reset()
+	this.sha1p.Write(this.password)
 	this.sha1p.Write(data)
 	return append(data, this.sha1p.Sum(nil)...), nil
 }
@@ -31,6 +36,8 @@ func (this *NONESHA1Cryption) Decrypt(data []byte) ([]byte, error) {
 	if encrypted_packet_length < 28 {
 		return nil, errors.New("encrypted packet length too short")
 	}
+	this.sha1p.Reset()
+	this.sha1p.Write(this.password)
 	this.sha1p.Write(data[:encrypted_packet_length-20])
 	current_sha1sum := this.sha1p.Sum(nil)
 	if !bytes.Equal(current_sha1sum, data[encrypted_packet_length-20:encrypted_packet_length]) {

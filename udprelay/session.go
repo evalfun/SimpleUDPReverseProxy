@@ -2,7 +2,6 @@ package udprelay
 
 import (
 	"errors"
-	"log"
 	"net"
 	"time"
 )
@@ -68,7 +67,7 @@ func (this *UDPSession) Close(r string) {
 		return
 	}
 	this.ClosedTime = time.Now().Unix()
-	log.Println("Session closed ", this.TargetAddr.String(), r)
+	//log.Println("Session closed ", this.TargetAddr.String(), r)
 	this.Conn.Close()
 }
 

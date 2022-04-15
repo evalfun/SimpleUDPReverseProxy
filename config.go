@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -153,7 +154,7 @@ func saveConfig() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile(configFilePath, data, 644)
+	err = ioutil.WriteFile(configFilePath, data, os.FileMode(0600))
 	if err != nil {
 		return err
 	}

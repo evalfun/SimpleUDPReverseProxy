@@ -1,6 +1,7 @@
 package udprelay
 
 import (
+	"SimpleUDPReverseProxy/crypts"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -59,6 +60,7 @@ type AdvancedRelayClient struct {
 	trackerMessage    string
 	serverAddrListft  []string //从tracker获取到的服务器地址
 	randomOffset      int64    //一个普通的随机值
+	cryptInstance     crypts.Cryption
 }
 
 //流程：新建客户端，设置stun服务器，(有了公网ip，请求对方的公网ip)，设置对方地址列表，开始连接
@@ -87,6 +89,10 @@ func NewAdvancedRelayClient(listenerPort int, localPort int, bufSize int, target
 		session:           make(map[string]*StunSession),
 	}
 	var err error
+	relay.cryptInstance, err = crypts.NewCryption(encryptMethod, password, passwd_salt)
+	if err != nil {
+		return nil, err
+	}
 	if localPort != 0 {
 		relay.conn, err = net.ListenUDP("udp", &net.UDPAddr{
 			IP:   net.IPv4zero,
@@ -307,7 +313,7 @@ func (this *AdvancedRelayClient) recv_udp_proc() {
 					continue //已经建立连接，拒绝新建连接
 				}
 				// 连接之前先进行解包，和校验时间戳
-				packet, err := DecryptPacket(data[:read_count], this.password, this.encryptMethod, this.hashHeaderOnly)
+				packet, err := DecryptPacket(data[:read_count], this.cryptInstance, this.hashHeaderOnly)
 				if err != nil {
 					log.Printf("Client %s received an invaild packet from %s %s", this.localName,
 						remoteAddrString, err.Error())
@@ -390,7 +396,7 @@ func (this *AdvancedRelayClient) SetStunServer(stun_server string) error {
 
 //检查资源线程
 func (this *AdvancedRelayClient) check_session_proc() {
-	var stunSession CommonSession
+	//var stunSession CommonSession
 	var currentTime int64
 	for this.stat != ARCL_STAT_CLOSED {
 		if this.stat == ARCL_STAT_CONNECTINT {
@@ -428,7 +434,7 @@ func (this *AdvancedRelayClient) check_session_proc() {
 			for k := range this.session {
 				_, _, _, ClosedTime, LastRecv, LastSend := this.session[k].GetSessionInfo()
 				if currentTime-LastRecv > int64(this.sessionTimeout) && currentTime-LastSend > int64(this.sessionTimeout) {
-					stunSession.Close("session timeout")
+					this.session[k].Close("session timeout")
 					log.Printf("Client %s stun session timeout", this.localName)
 				}
 				if currentTime-ClosedTime > int64(this.saveClosedSession) && ClosedTime != 0 {

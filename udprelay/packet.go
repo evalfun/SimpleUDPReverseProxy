@@ -17,12 +17,9 @@ type Packet struct {
 
 //解密数据包，以后还要做解压缩
 //return 解密后的数据包  数据包类型 Session 错误信息
-func DecryptPacket(encrypted_packet []byte, password []byte, method int, hashHeaderOnly bool) (*Packet, error) {
+func DecryptPacket(encrypted_packet []byte, cryptInstance crypts.Cryption, hashHeaderOnly bool) (*Packet, error) {
 	var decrypted_packet []byte
-	cryptInstance, err := crypts.NewCryption(method, password, passwd_salt)
-	if err != nil {
-		return nil, errors.New("Create crypt instance error: " + err.Error())
-	}
+	var err error
 	decrypted_packet, err = cryptInstance.Decrypt(encrypted_packet)
 	if err != nil {
 		return nil, errors.New("Unable to decrypt packet:" + err.Error())
@@ -46,7 +43,7 @@ func DecryptPacket(encrypted_packet []byte, password []byte, method int, hashHea
 //加密数据包，以后还要做压缩
 // arg 未加密数据包 密码 数据包类型 session 压缩类型
 //return 数据包
-func (this *Packet) EncryptPacket(password []byte, method int, compress_type uint8, hashHeaderOnly bool) ([]byte, error) {
+func (this *Packet) EncryptPacket(cryptInstance crypts.Cryption, compress_type uint8, hashHeaderOnly bool) ([]byte, error) {
 	var encrypted_packet []byte
 
 	packet_header := make([]byte, 8)
@@ -55,11 +52,7 @@ func (this *Packet) EncryptPacket(password []byte, method int, compress_type uin
 	binary.BigEndian.PutUint16(packet_header[2:4], this.SessionID) //session
 	binary.BigEndian.PutUint32(packet_header[4:8], this.SN)        //序列号
 	decrypted_packet := append(packet_header, this.Data...)        //数据
-
-	cryptInstance, err := crypts.NewCryption(method, password, passwd_salt)
-	if err != nil {
-		return nil, errors.New("Create encrypt instance error: " + err.Error())
-	}
+	var err error
 	encrypted_packet, err = cryptInstance.Encrypt(decrypted_packet)
 	if err != nil {
 		return nil, err
@@ -179,6 +172,9 @@ func UnpackCreateConnInfo(encryptedPacket []byte, passwd []byte) (*CreateConnInf
 	createConnInfo.PeerName = packet[14+addr_length : 14+addr_length+int(peerNameLength)]
 	createConnInfo.OtherData = packet[14+addr_length+int(peerNameLength) : 14+addr_length+int(peerNameLength)+int(otherDataLength)]
 	createConnInfo.NewPasswd = packet[14+addr_length+int(peerNameLength)+int(otherDataLength):]
+	if len(createConnInfo.NewPasswd) != 16 {
+		createConnInfo.NewPasswd = createConnInfo.NewPasswd[:16]
+	}
 	return createConnInfo, nil
 }
 

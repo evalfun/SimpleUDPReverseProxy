@@ -1,6 +1,7 @@
 package udprelay
 
 import (
+	"SimpleUDPReverseProxy/crypts"
 	"crypto/rand"
 	"encoding/binary"
 	"fmt"
@@ -70,6 +71,9 @@ type AdvancedRelayConn struct {
 	createTime         int64
 	sessionLock        sync.RWMutex
 	sendLock           sync.Mutex
+
+	cryptInstance          crypts.Cryption
+	cryptInstanceNewPasswd crypts.Cryption
 }
 
 //参数：本端连接， 对端地址，密码，加密方式，是否只加密头部，本端名称，本端注释，超时时间
@@ -104,6 +108,8 @@ func NewAdvancedRelayConn(conn *net.UDPConn, addr *net.UDPAddr,
 	arc.commonChan = make(chan int, 5)
 	arc.act = ARC_ACT_SERVER
 	arc.createTime = time.Now().Unix()
+	arc.cryptInstance, _ = crypts.NewCryption(arc.encryptMethod, arc.password, passwd_salt)
+	arc.cryptInstanceNewPasswd, _ = crypts.NewCryption(arc.encryptMethod, arc.newPasswd, passwd_salt)
 	go arc.recvPacketProc()
 	go arc.checkSessionProc()
 	return arc
@@ -231,6 +237,7 @@ func (this *AdvancedRelayConn) tryConnectProc() {
 	}
 	rand.Read(createConnInfo.NewPasswd)
 	this.newPasswd = createConnInfo.NewPasswd
+	this.cryptInstanceNewPasswd.SetPassword(this.newPasswd, passwd_salt)
 	createConnPacket, err := createConnInfo.PackCreateConnInfo(this.password)
 	if err != nil {
 		this.log(fmt.Sprintf("pack create connection info error:%s", err.Error()))
@@ -244,6 +251,7 @@ func (this *AdvancedRelayConn) tryConnectProc() {
 		case <-timer.C: //好像超时了，再次发送建立连接报文
 			rand.Read(createConnInfo.NewPasswd)
 			this.newPasswd = createConnInfo.NewPasswd
+			this.cryptInstanceNewPasswd.SetPassword(this.newPasswd, passwd_salt)
 			createConnInfo.TimeStamp = uint64(time.Now().Unix())
 			createConnPacket, err = createConnInfo.PackCreateConnInfo(this.password)
 			this.log(fmt.Sprintf("Try connect to %s,push new password %x\n", this.remoteAddrString, this.newPasswd))
@@ -271,16 +279,16 @@ func (this *AdvancedRelayConn) sendPacket(msgType uint8, sessionID uint16, data 
 		SN:        this.sendPacketSN,
 	}
 	//time.Sleep(1 * time.Second)
-	var passwd []byte
 	var err error
 	var encryptedPacket []byte
+	var cryptInstance crypts.Cryption
 	if this.connStat == ARC_STAT_ESTABLISHED || this.connStat == ARC_STAT_READY {
-		passwd = this.newPasswd
+		cryptInstance = this.cryptInstanceNewPasswd
 	} else {
-		passwd = this.password
+		cryptInstance = this.cryptInstance
 	}
 
-	encryptedPacket, err = packet.EncryptPacket(passwd, this.encryptMethod, this.compressType, this.hashHeaderOnly)
+	encryptedPacket, err = packet.EncryptPacket(cryptInstance, this.compressType, this.hashHeaderOnly)
 
 	if err != nil {
 		this.log(fmt.Sprintf("encrypt packet error:%s", err.Error()))
@@ -293,7 +301,10 @@ func (this *AdvancedRelayConn) sendPacket(msgType uint8, sessionID uint16, data 
 	}
 	//this.log(fmt.Sprintf("EncryptPacket %x, %d, %v", passwd, this.encryptMethod, this.hashHeaderOnly))
 	this.sendSize = this.sendSize + int64(sendSize)
-	this.lastSend = time.Now().Unix()
+	if msgType != MSG_DATA {
+		this.lastSend = time.Now().Unix()
+	}
+	//this.lastSend = time.Now().Unix() 由于性能问题，不统计
 }
 
 // 只有服务器才要发送ack报文
@@ -346,6 +357,15 @@ func (this *AdvancedRelayConn) closeWithoutSendMSG(r string) {
 	return
 }
 
+func (this *AdvancedRelayConn) invalidOriginalPasswd() {
+	if this.password != nil {
+		this.password = nil
+		nilPassword := make([]byte, 16)
+		rand.Read(nilPassword)
+		this.cryptInstance.SetPassword(nilPassword, passwd_salt)
+	}
+}
+
 // 接收报文！！！此协程每个实例一个
 func (this *AdvancedRelayConn) recvPacketProc() {
 	var decrypted_packet *Packet
@@ -356,20 +376,17 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			return
 		}
 		//先开始解密,使用新的密码
-		decrypted_packet, err = DecryptPacket(encrypted_packet, this.newPasswd, this.encryptMethod, this.hashHeaderOnly)
+		decrypted_packet, err = DecryptPacket(encrypted_packet, this.cryptInstanceNewPasswd, this.hashHeaderOnly)
 
 		if err != nil {
 			// 新密码无法解密时使用旧密码
 
-			decrypted_packet, err = DecryptPacket(encrypted_packet, this.password, this.encryptMethod, this.hashHeaderOnly)
+			decrypted_packet, err = DecryptPacket(encrypted_packet, this.cryptInstance, this.hashHeaderOnly)
 
 			if err != nil { // 旧密码也无法解密，那就gun吧
 				this.log(fmt.Sprintf("Decrypt packet error:%s", err.Error()))
 				continue
 			}
-		} else { //新密码解密成功，使旧密码失效 都给我去用新密码
-			this.password = make([]byte, 16)
-			rand.Read(this.password)
 		}
 
 		//对一下序列号，防止重放攻击
@@ -394,13 +411,14 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			this.closeWithoutSendMSG("Connection closed by remote")
 			return
 		case MSG_DATA: //收到了要转发的数据
-			this.lastRecv = time.Now().Unix()
+			//this.lastRecv = time.Now().Unix() 性能问题，不统计
 			if this.connStat != ARC_STAT_ESTABLISHED && this.connStat != ARC_STAT_READY {
 				continue
 			}
 			if this.act == ARC_ACT_SERVER { // 服务端
 				if this.connStat == ARC_STAT_READY {
 					this.log("Recv data from client, connection enter ESTABLISHED stat.")
+					this.invalidOriginalPasswd()
 					this.connStat = ARC_STAT_ESTABLISHED
 				}
 				var session *UDPSession
@@ -479,6 +497,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 				this.log(fmt.Sprintf("Set target user server to %s %s", createConnInfo.NetworkType, createConnInfo.TargetAddr))
 			}
 			this.newPasswd = createConnInfo.NewPasswd
+			this.cryptInstanceNewPasswd.SetPassword(this.newPasswd, passwd_salt)
 			this.compressType = createConnInfo.ReqCompressType
 			this.peerName = createConnInfo.PeerName
 			this.peerOtherData = createConnInfo.OtherData
@@ -506,6 +525,7 @@ func (this *AdvancedRelayConn) recvPacketProc() {
 			this.peerOtherData = ackInfo.OtherData
 			//开始ping和传输数据
 			this.sendPacket(MSG_PING, 0, nil)
+			this.invalidOriginalPasswd()
 			this.log("Recv ack from server, enter ESTABLISHED stat. remote name: " + string(this.peerName))
 			//go this.RecvUserClientDataProc()
 		case MSG_PING:
